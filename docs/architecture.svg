@@ -1,113 +1,97 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" role="img" aria-label="Knowledge Intelligence Platform architecture. Confluence PDF exports, GitHub README files and the component registry are parsed, chunked, embedded and indexed. Vectors go to an S3 Vectors index and the parsed text to a separate S3 chunk store. A question from Slack or the REST API runs hybrid retrieval, semantic and keyword, taking twenty-five candidates from each side and fusing them to five passages. The Platform Knowledge Agent answers only from those passages, and refuses when they do not cover the question.">
-  <defs>
-    <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
-    <marker id="i" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6366F1"/></marker>
-    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#16A34A"/></marker>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#D97706"/></marker>
-    <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0E7490"/></marker>
-    <g id="s3">
-      <path d="M2 6 h32 l-4 30 a12 5 0 0 1 -24 0 z" fill="#3F8624"/>
-      <ellipse cx="18" cy="6" rx="16" ry="5" fill="#5FA83C"/>
-      <path d="M18 14 v18 M12 20 l6 4 6 -4" stroke="#ffffff" stroke-width="2.4" fill="none"/>
-    </g>
-    <g id="ecs">
-      <rect width="38" height="38" rx="9" fill="#ED7100"/>
-      <rect x="9" y="9" width="9" height="9" rx="2" fill="#ffffff"/>
-      <rect x="21" y="9" width="9" height="9" rx="2" fill="#ffffff"/>
-      <rect x="9" y="21" width="9" height="9" rx="2" fill="#ffffff"/>
-      <rect x="21" y="21" width="9" height="9" rx="2" fill="#ffffff"/>
-    </g>
-    <g id="apigw">
-      <rect width="38" height="38" rx="9" fill="#8C4FFF"/>
-      <path d="M15 12 l-6 7 6 7 M23 12 l6 7 -6 7" stroke="#ffffff" stroke-width="2.6" fill="none"/>
-    </g>
-  </defs>
-  <rect x="0" y="0" width="1920" height="1080" fill="#ffffff"/>
-  <rect x="60" y="70" width="440" height="440" rx="16" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="7 5"/>
-  <text x="84" y="108" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#475569">APPROVED SOURCES</text>
-  <rect x="84" y="136" width="392" height="108" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.5"/>
-  <rect x="106" y="166" width="34" height="46" rx="5" fill="#2563EB"/>
-  <path d="M114 180 h18 M114 191 h18 M114 202 h12" stroke="#ffffff" stroke-width="2.4"/>
-  <text x="158" y="186" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Confluence PDFs</text>
-  <text x="158" y="212" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">manual export</text>
-  <rect x="84" y="262" width="392" height="108" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.5"/>
-  <circle cx="123" cy="300" r="9" fill="#2563EB"/>
-  <circle cx="123" cy="332" r="9" fill="#2563EB"/>
-  <path d="M123 309 v14" stroke="#2563EB" stroke-width="3"/>
-  <text x="158" y="312" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">GitHub README</text>
-  <text x="158" y="338" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">mapped repos only</text>
-  <rect x="84" y="388" width="392" height="108" rx="10" fill="#ffffff" stroke="#16A34A" stroke-width="1.8"/>
-  <ellipse cx="123" cy="426" rx="17" ry="6.5" fill="#16A34A"/>
-  <path d="M106 426 v22 a17 6.5 0 0 0 34 0 v-22" fill="#16A34A"/>
-  <text x="158" y="438" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Component Registry</text>
-  <text x="158" y="464" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">its own repository</text>
-  <path d="M500 290.0 H 746" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#s)"/>
-  <rect x="760" y="70" width="460" height="440" rx="16" fill="#ffffff" stroke="#6366F1" stroke-width="2" stroke-dasharray="8 5"/>
-  <text x="784" y="108" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#3730A3">INGESTION &amp; INDEXING</text>
-  <rect x="800.0" y="136" width="380" height="76" rx="10" fill="#6366F1" stroke="#6366F1" stroke-width="1.6"/>
-  <text x="824.0" y="170" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Parse</text>
-  <text x="824.0" y="196" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E0E7FF">text + diagram descriptions</text>
-  <path d="M990.0 212 V 232" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
-  <rect x="800.0" y="234" width="380" height="76" rx="10" fill="#6366F1" stroke="#6366F1" stroke-width="1.6"/>
-  <text x="824.0" y="268" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Chunk</text>
-  <text x="824.0" y="294" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E0E7FF">2000 chars · 250 overlap</text>
-  <path d="M990.0 310 V 330" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
-  <rect x="800.0" y="332" width="380" height="76" rx="10" fill="#6366F1" stroke="#6366F1" stroke-width="1.6"/>
-  <text x="824.0" y="366" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Embed</text>
-  <text x="824.0" y="392" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E0E7FF">1536 dimensions</text>
-  <path d="M990.0 408 V 428" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
-  <rect x="800.0" y="430" width="380" height="58" rx="10" fill="#4338CA" stroke="#4338CA" stroke-width="1.6"/>
-  <text x="824.0" y="464" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Index</text>
-  <rect x="1480" y="70" width="380" height="440" rx="16" fill="#F0FDF4" stroke="#16A34A" stroke-width="2"/>
-  <text x="1504" y="108" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#15803D">AMAZON S3</text>
-  <rect x="1504" y="150" width="332" height="136" rx="12" fill="#DCFCE7" stroke="#4ADE80" stroke-width="1.6"/>
-  <use href="#s3" x="1528" y="176"/>
-  <text x="1528" y="246" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#14532D">Vector index</text>
-  <text x="1528" y="270" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#166534">semantic recall</text>
-  <rect x="1504" y="316" width="332" height="136" rx="12" fill="#DCFCE7" stroke="#4ADE80" stroke-width="1.6"/>
-  <use href="#s3" x="1528" y="342"/>
-  <text x="1528" y="412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#14532D">Chunk store</text>
-  <text x="1528" y="436" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#166534">parsed text</text>
-  <path d="M1220 220 H 1466" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
-  <rect x="1315.9" y="190.5" width="68.3" height="23.0" rx="11.5" fill="#DCFCE7"/>
-  <text x="1350.0" y="206" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#15803D" text-anchor="middle">vectors</text>
-  <path d="M1220 370 H 1466" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
-  <rect x="1304.3" y="384.5" width="91.4" height="23.0" rx="11.5" fill="#DCFCE7"/>
-  <text x="1350.0" y="400" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#15803D" text-anchor="middle">parsed text</text>
-  <rect x="1480" y="590" width="380" height="400" rx="16" fill="#ECFEFF" stroke="#0E7490" stroke-width="2"/>
-  <text x="1504" y="628" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#155E75">HYBRID SEARCH</text>
-  <rect x="1504" y="656" width="332" height="110" rx="12" fill="#ffffff" stroke="#67E8F9" stroke-width="1.6"/>
-  <text x="1528" y="700" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16.5" font-weight="700" fill="#0F172A">Semantic</text>
-  <text x="1528" y="728" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">by meaning</text>
-  <rect x="1504" y="796" width="332" height="110" rx="12" fill="#ffffff" stroke="#67E8F9" stroke-width="1.6"/>
-  <text x="1528" y="840" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16.5" font-weight="700" fill="#0F172A">Keyword</text>
-  <text x="1528" y="868" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">TF-IDF</text>
-  <text x="1504" y="950" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#155E75">25 each side, fused to 5</text>
-  <path d="M1670.0 510 V 582" fill="none" stroke="#0E7490" stroke-width="2.2" marker-end="url(#c)"/>
-  <rect x="820.0" y="712" width="340" height="156" rx="16" fill="#EEF2FF" stroke="#6366F1" stroke-width="2"/>
-  <text x="844.0" y="750" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#3730A3">PLATFORM KNOWLEDGE AGENT</text>
-  <use href="#ecs" x="1098.0" y="806"/>
-  <text x="844.0" y="788" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#4338CA">Strands · OpenAI · ECS Fargate</text>
-  <path d="M1480 774 H 1176.0" fill="none" stroke="#0E7490" stroke-width="2.2" marker-end="url(#c)"/>
-  <rect x="1273.9" y="744.5" width="92.1" height="23.0" rx="11.5" fill="#CFFAFE"/>
-  <text x="1320.0" y="760" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#155E75" text-anchor="middle">5 passages</text>
-  <rect x="60" y="590" width="440" height="400" rx="16" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="7 5"/>
-  <text x="84" y="628" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#475569">DELIVERY</text>
-  <rect x="84" y="656" width="392" height="130" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.6"/>
-  <rect x="108" y="696" width="19" height="19" rx="5" fill="#36C5F0"/>
-  <rect x="132" y="696" width="19" height="19" rx="5" fill="#2EB67D"/>
-  <rect x="108" y="720" width="19" height="19" rx="5" fill="#ECB22E"/>
-  <rect x="132" y="720" width="19" height="19" rx="5" fill="#E01E5A"/>
-  <text x="180" y="708" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Enterprise Slack</text>
-  <text x="180" y="734" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">mention, thread or /ask-tme</text>
-  <rect x="84" y="816" width="392" height="130" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.6"/>
-  <use href="#apigw" x="108" y="856"/>
-  <text x="180" y="868" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">REST API</text>
-  <text x="180" y="894" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">answer text only</text>
-  <path d="M820.0 774 H 516" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#s)"/>
-  <rect x="626.6" y="744.5" width="66.8" height="23.0" rx="11.5" fill="#E2E8F0"/>
-  <text x="660.0" y="760" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">answer</text>
-  <path d="M516 832 H 820.0" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#s)"/>
-  <rect x="621.9" y="842.5" width="76.2" height="23.0" rx="11.5" fill="#E2E8F0"/>
-  <text x="660.0" y="858" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">question</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160" role="img" aria-labelledby="title description">
+<title id="title">Core Platform — implemented architecture</title><desc id="description">Two flows: approved sources are parsed, chunked and embedded into S3 Vectors and an S3 chunk store. Questions enter FastAPI, retrieve passages with hybrid search before a single Strands agent, and pass an enforced answer contract. Slack coverage requests bypass the model. OpenAI is implemented; Bedrock and direct Confluence connections are planned.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#65809b"/></marker></defs>
+<g font-family="Arial, Helvetica, sans-serif"><rect width="1800" height="1160" fill="#f5f7fb"/>
+<text x="48" y="48" font-size="15" fill="#2563eb" font-weight="700">KNOWLEDGE INTELLIGENCE PLATFORM</text>
+<text x="48" y="96" font-size="38" fill="#12253f" font-weight="700">Core Platform architecture</text>
+<text x="48" y="132" font-size="20" fill="#516178" font-weight="400">Reusable runtime · external knowledge configuration · one deployment context</text>
+<rect x="1375" y="43" width="377" height="52" rx="26" fill="#e5f3ec" stroke="#c7e4d3"/>
+<text x="1398" y="76" font-size="16" fill="#216342" font-weight="700">IMPLEMENTED • CODE-VERIFIED</text>
+<rect x="48" y="162" width="1704" height="80" rx="14" fill="#edf2fa" stroke="#d8e1ed"/>
+<text x="68" y="192" font-size="13" fill="#526987" font-weight="700">REPOSITORY BOUNDARY</text>
+<text x="68" y="222" font-size="19" fill="#14253c" font-weight="600">Core: runtime + shared infrastructure</text>
+<text x="620" y="192" font-size="13" fill="#526987" font-weight="700">EXTERNAL KNOWLEDGE</text>
+<text x="620" y="222" font-size="19" fill="#14253c" font-weight="600">Registry, source mappings and approved content</text>
+<text x="1200" y="192" font-size="13" fill="#526987" font-weight="700">EXTERNAL DEPLOYMENT INPUTS</text>
+<text x="1200" y="222" font-size="19" fill="#14253c" font-weight="600">Environment values and credentials</text>
+<text x="48" y="281" font-size="16" fill="#2563eb" font-weight="700">01  PREPARE KNOWLEDGE</text>
+<text x="1010" y="281" font-size="16" fill="#516178" font-weight="400">Controlled ingestion • CLI or protected admin endpoint</text>
+<rect x="48" y="300" width="342" height="173" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="48" y="318" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="68" y="335" font-size="21" fill="#14253c" font-weight="650">Approved sources</text>
+<text x="68" y="364" font-size="17" fill="#516178" font-weight="400">Confluence PDF exports in S3</text>
+<text x="68" y="389" font-size="17" fill="#516178" font-weight="400">Mapped GitHub README files</text>
+<text x="68" y="414" font-size="17" fill="#516178" font-weight="400">External component registry</text>
+<rect x="438" y="300" width="350" height="173" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="438" y="318" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="458" y="335" font-size="21" fill="#14253c" font-weight="650">Parse and chunk</text>
+<text x="458" y="364" font-size="17" fill="#516178" font-weight="400">PDF / Markdown → ParsedDocument</text>
+<text x="458" y="389" font-size="17" fill="#516178" font-weight="400">Optional page-grounded vision</text>
+<text x="458" y="414" font-size="17" fill="#516178" font-weight="400">Deterministic text chunks</text>
+<rect x="836" y="300" width="350" height="173" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="836" y="318" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="856" y="335" font-size="21" fill="#14253c" font-weight="650">Embed and persist</text>
+<text x="856" y="364" font-size="17" fill="#516178" font-weight="400">OpenAI document embeddings</text>
+<text x="856" y="389" font-size="17" fill="#516178" font-weight="400">Write vectors + full chunk records</text>
+<text x="856" y="414" font-size="17" fill="#516178" font-weight="400">Retain unselected sources</text>
+<rect x="1234" y="300" width="518" height="173" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="1234" y="318" width="4" height="24" rx="2" fill="#16816d"/>
+<text x="1254" y="335" font-size="21" fill="#14253c" font-weight="650">Durable knowledge stores</text>
+<text x="1254" y="364" font-size="17" fill="#516178" font-weight="400">S3 Vectors  ·  semantic index</text>
+<text x="1254" y="389" font-size="17" fill="#516178" font-weight="400">Amazon S3  ·  processed chunks + manifest</text>
+<text x="1254" y="414" font-size="17" fill="#516178" font-weight="400">Registry loaded separately at startup</text>
+<path d="M390 386H438" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<path d="M788 386H836" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<path d="M1186 386H1234" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<text x="48" y="504" font-size="17" fill="#516178" font-weight="400">Registry supplies identity, mappings and relationships; contacts are attached structurally, outside model context.</text>
+<text x="48" y="559" font-size="16" fill="#2563eb" font-weight="700">02  ANSWER A QUESTION</text>
+<text x="930" y="559" font-size="16" fill="#516178" font-weight="400">Fresh retrieval precedes generation on every knowledge turn</text>
+<rect x="48" y="582" width="290" height="197" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="48" y="600" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="68" y="617" font-size="21" fill="#14253c" font-weight="650">Receive and route</text>
+<text x="68" y="646" font-size="17" fill="#516178" font-weight="400">FastAPI</text>
+<text x="68" y="671" font-size="17" fill="#516178" font-weight="400">REST knowledge query</text>
+<text x="68" y="696" font-size="17" fill="#516178" font-weight="400">Slack mentions, DMs, threads</text>
+<text x="68" y="721" font-size="17" fill="#516178" font-weight="400">Coverage → deterministic report</text>
+<rect x="386" y="582" width="416" height="197" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="386" y="600" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="406" y="617" font-size="21" fill="#14253c" font-weight="650">Hybrid retrieval</text>
+<text x="406" y="646" font-size="17" fill="#516178" font-weight="400">Query embedding → S3 Vectors</text>
+<text x="406" y="671" font-size="17" fill="#516178" font-weight="400">TF-IDF → in-memory keyword index</text>
+<text x="406" y="696" font-size="17" fill="#516178" font-weight="400">Rank fusion + document diversity</text>
+<text x="406" y="721" font-size="17" fill="#516178" font-weight="400">Return passages with source IDs</text>
+<rect x="850" y="582" width="394" height="197" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="850" y="600" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="870" y="617" font-size="21" fill="#14253c" font-weight="650">Grounded generation</text>
+<text x="870" y="646" font-size="17" fill="#516178" font-weight="400">One Strands agent · OpenAI</text>
+<text x="870" y="671" font-size="17" fill="#516178" font-weight="400">Structured answer and visual fields</text>
+<text x="870" y="696" font-size="17" fill="#516178" font-weight="400">Instruction-only presentation skills</text>
+<text x="870" y="721" font-size="17" fill="#516178" font-weight="400">Bounded conversation context</text>
+<rect x="1292" y="582" width="460" height="197" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<rect x="1292" y="600" width="4" height="24" rx="2" fill="#2563eb"/>
+<text x="1312" y="617" font-size="21" fill="#14253c" font-weight="650">Enforce and deliver</text>
+<text x="1312" y="646" font-size="17" fill="#516178" font-weight="400">Answer contract + canonical refusal</text>
+<text x="1312" y="671" font-size="17" fill="#516178" font-weight="400">API: answer text, source IDs removed</text>
+<text x="1312" y="696" font-size="17" fill="#516178" font-weight="400">Slack: streaming, diagrams, follow-ups</text>
+<text x="1312" y="721" font-size="17" fill="#516178" font-weight="400">Feedback stored without conversation</text>
+<path d="M338 680H386" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<path d="M802 680H850" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<path d="M1244 680H1292" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<path d="M1493 473V533H594V582" fill="none" stroke="#65809b" stroke-width="2"  marker-end="url(#arrow)"/>
+<text x="1050" y="523" font-size="15" fill="#516178" font-weight="400">Vector query + chunks; restore keyword cache</text>
+<rect x="48" y="804" width="1704" height="125" rx="14" fill="#fff" stroke="#d8e1ed"/>
+<text x="68" y="835" font-size="14" fill="#526987" font-weight="700">SHARED RUNTIME SERVICES</text>
+<text x="68" y="867" font-size="19" fill="#14253c" font-weight="600">Registry resolution</text>
+<text x="68" y="897" font-size="17" fill="#516178" font-weight="400">AppConfig → S3 current / previous → cache</text>
+<text x="655" y="867" font-size="19" fill="#14253c" font-weight="600">Conversation and delivery state</text>
+<text x="655" y="897" font-size="17" fill="#516178" font-weight="400">Optional S3 sessions · diagrams · feedback</text>
+<text x="1220" y="867" font-size="19" fill="#14253c" font-weight="600">Operational support</text>
+<text x="1220" y="897" font-size="17" fill="#516178" font-weight="400">Secrets Manager · CloudWatch · health checks</text>
+<rect x="48" y="951" width="1704" height="62" rx="14" fill="#eaf0f8" stroke="#d8e1ed"/>
+<text x="68" y="989" font-size="14" fill="#526987" font-weight="700">AWS DEPLOYMENT</text>
+<text x="265" y="989" font-size="19" fill="#14253c" font-weight="500">API Gateway → public ALB → FastAPI on ECS Fargate     |     ECR container image + Terraform</text>
+<rect x="48" y="1035" width="1704" height="78" rx="14" fill="#fff8eb" stroke="#e5c990"/>
+<text x="68" y="1064" font-size="13" fill="#8b6423" font-weight="700">PLANNED • NOT IMPLEMENTED IN THE CURRENT RUNTIME</text>
+<text x="68" y="1094" font-size="19" fill="#785822" font-weight="500">Amazon Bedrock migration    ·    Direct Confluence space connections    ·    Richer intent and audience adaptation</text>
+<text x="48" y="1142" font-size="14" fill="#516178" font-weight="400">Scope: local code and Terraform definitions; this diagram does not assert live infrastructure state.</text>
+</g></svg>
