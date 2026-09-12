@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 1246" width="1760" height="1246" role="img" aria-label="How the platform works end to end. First, getting knowledge in: Confluence PDFs, GitHub READMEs and the component registry are parsed into plain text, split into passages, and embedded as numbers. Second, what is stored: the passage text in a chunk store, the numbers in a vector index, and the live registry delivered by AppConfig from the team's own registry repository. Third, answering a question: someone asks in their own words, hybrid search combines meaning and exact words against both stores, the best few passages are the only thing the model is given, the agent answers from those alone, and the reply goes back to Slack with a diagram and a contact. Contacts are never indexed, and when nothing relevant is found the agent says it does not know rather than guessing.">
+  <defs>
+    <marker id="sky" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0369A1"/></marker>
+    <marker id="slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#475569"/></marker>
+    <marker id="indigo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#4338CA"/></marker>
+    <marker id="amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#B45309"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1760" height="1246" fill="#ffffff"/>
+  <text x="32" y="74" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="40" font-weight="700" fill="#0F172A">How it works, end to end</text>
+  <text x="32" y="114" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="600" fill="#64748B">Knowledge goes in occasionally. Questions come through every time someone asks.</text>
+  <rect x="28" y="148" width="1704" height="344" rx="20" fill="#F0F9FF" stroke="#BAE6FD" stroke-width="2"/>
+  <circle cx="84" cy="192" r="21" fill="#0369A1"/>
+  <text x="84" y="200" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="120" y="200" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#0369A1" letter-spacing="1.8">GETTING KNOWLEDGE IN</text>
+  <text x="1700" y="200" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#64748B" text-anchor="end">runs when documents change — minutes, not seconds</text>
+  <rect x="60" y="236" width="330" height="66" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="76" y="254" width="5" height="30" rx="2.5" fill="#0369A1"/>
+  <text x="96" y="263.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Confluence PDFs</text>
+  <text x="96" y="289.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">exported into S3</text>
+  <rect x="60" y="314" width="330" height="66" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="76" y="332" width="5" height="30" rx="2.5" fill="#0369A1"/>
+  <text x="96" y="341.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">GitHub READMEs</text>
+  <text x="96" y="367.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">repos named in the registry</text>
+  <rect x="60" y="392" width="330" height="66" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="76" y="410" width="5" height="30" rx="2.5" fill="#0369A1"/>
+  <text x="96" y="419.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Component registry</text>
+  <text x="96" y="445.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">services, owners, aliases</text>
+  <rect x="470" y="280" width="240" height="104" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="486" y="298" width="5" height="68" rx="2.5" fill="#0369A1"/>
+  <text x="506" y="326.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Parse</text>
+  <text x="506" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">into plain text</text>
+  <rect x="760" y="280" width="240" height="104" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="776" y="298" width="5" height="68" rx="2.5" fill="#0369A1"/>
+  <text x="796" y="326.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Chunk</text>
+  <text x="796" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">split into passages</text>
+  <path d="M710 332.0 H 750" fill="none" stroke="#0369A1" stroke-width="2.4" marker-end="url(#sky)"/>
+  <rect x="1050" y="280" width="240" height="104" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="1066" y="298" width="5" height="68" rx="2.5" fill="#0369A1"/>
+  <text x="1086" y="326.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Embed</text>
+  <text x="1086" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">text becomes numbers</text>
+  <path d="M1000 332.0 H 1040" fill="none" stroke="#0369A1" stroke-width="2.4" marker-end="url(#sky)"/>
+  <path d="M390 269 H 430 V 332.0 H 460" stroke="#0369A1" stroke-width="2.4" fill="none" marker-end="url(#sky)"/>
+  <path d="M390 347 H 430" stroke="#0369A1" stroke-width="2.4" fill="none"/>
+  <path d="M390 425 H 430 V 332.0" stroke="#0369A1" stroke-width="2.4" fill="none"/>
+  <rect x="1370" y="280" width="330" height="104" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="1386" y="298" width="5" height="68" rx="2.5" fill="#B45309"/>
+  <text x="1406" y="326.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">The team's registry repo</text>
+  <text x="1406" y="352.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">published when they merge</text>
+  <rect x="28" y="538" width="1704" height="196" rx="20" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2"/>
+  <circle cx="84" cy="582" r="21" fill="#475569"/>
+  <text x="84" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="120" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#475569" letter-spacing="1.8">WHAT IS STORED</text>
+  <text x="400" y="590" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#64748B">kept in the team's own S3</text>
+  <rect x="700" y="600" width="300" height="112" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="716" y="618" width="5" height="76" rx="2.5" fill="#475569"/>
+  <text x="736" y="650.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Chunk store</text>
+  <text x="736" y="676.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">the passage text</text>
+  <rect x="1035" y="600" width="300" height="112" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="1051" y="618" width="5" height="76" rx="2.5" fill="#475569"/>
+  <text x="1071" y="650.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Vector index</text>
+  <text x="1071" y="676.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">the numbers, for meaning</text>
+  <rect x="1370" y="600" width="300" height="112" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="1386" y="618" width="5" height="76" rx="2.5" fill="#B45309"/>
+  <text x="1406" y="650.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Live registry</text>
+  <text x="1406" y="676.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">arrives via AppConfig</text>
+  <path d="M880 384 V 590" fill="none" stroke="#0369A1" stroke-width="2.4" marker-end="url(#sky)"/>
+  <path d="M1170 384 V 590" fill="none" stroke="#0369A1" stroke-width="2.4" marker-end="url(#sky)"/>
+  <path d="M1535 384 V 590" fill="none" stroke="#B45309" stroke-width="2.4" marker-end="url(#amber)"/>
+  <rect x="28" y="780" width="1704" height="300" rx="20" fill="#EEF2FF" stroke="#C7D2FE" stroke-width="2"/>
+  <circle cx="84" cy="824" r="21" fill="#4338CA"/>
+  <text x="84" y="832" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="120" y="832" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#4338CA" letter-spacing="1.8">ANSWERING A QUESTION</text>
+  <text x="1700" y="832" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#64748B" text-anchor="end">runs every time — seconds</text>
+  <rect x="60" y="898" width="300" height="120" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="76" y="916" width="5" height="84" rx="2.5" fill="#4338CA"/>
+  <text x="96" y="952.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Someone asks</text>
+  <text x="96" y="978.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">in their own words</text>
+  <rect x="395" y="898" width="300" height="120" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="411" y="916" width="5" height="84" rx="2.5" fill="#4338CA"/>
+  <text x="431" y="952.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Hybrid search</text>
+  <text x="431" y="978.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">meaning + exact words</text>
+  <path d="M360 958.0 H 387" fill="none" stroke="#4338CA" stroke-width="2.4" marker-end="url(#indigo)"/>
+  <rect x="730" y="898" width="300" height="120" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="746" y="916" width="5" height="84" rx="2.5" fill="#4338CA"/>
+  <text x="766" y="952.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Best few passages</text>
+  <text x="766" y="978.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">all the model is given</text>
+  <path d="M695 958.0 H 722" fill="none" stroke="#4338CA" stroke-width="2.4" marker-end="url(#indigo)"/>
+  <rect x="1065" y="898" width="300" height="120" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="1081" y="916" width="5" height="84" rx="2.5" fill="#4338CA"/>
+  <text x="1101" y="952.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">The agent answers</text>
+  <text x="1101" y="978.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">only from those passages</text>
+  <path d="M1030 958.0 H 1057" fill="none" stroke="#4338CA" stroke-width="2.4" marker-end="url(#indigo)"/>
+  <rect x="1400" y="898" width="300" height="120" rx="13" fill="#ffffff" stroke="#E2E8F0" stroke-width="1.6"/>
+  <rect x="1416" y="916" width="5" height="84" rx="2.5" fill="#B45309"/>
+  <text x="1436" y="952.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="21" font-weight="700" fill="#101828">Reply in Slack</text>
+  <text x="1436" y="978.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#64748B">diagram and contact added</text>
+  <path d="M1365 958.0 H 1392" fill="none" stroke="#4338CA" stroke-width="2.4" marker-end="url(#indigo)"/>
+  <path d="M850 712 C 850 858, 545 838, 545 888" fill="none" stroke="#475569" stroke-width="2.4" marker-end="url(#slate)"/>
+  <path d="M1185 712 C 1185 868, 575 828, 560 888" fill="none" stroke="#475569" stroke-width="2.4" marker-end="url(#slate)"/>
+  <path d="M1520 712 V 888" fill="none" stroke="#B45309" stroke-width="2.4" marker-end="url(#amber)"/>
+  <rect x="28" y="1114" width="1704" height="104" rx="18" fill="#FFFBEB"/>
+  <text x="62" y="1158" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#B45309">Contacts are never indexed — the registry supplies them as the reply is sent.</text>
+  <text x="62" y="1192" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#B45309">Nothing relevant found? It says it does not know, rather than guessing.</text>
+</svg>

@@ -147,6 +147,22 @@ resource "aws_ecs_task_definition" "application" {
           value = tostring(var.slack_conversation_window)
         },
         {
+          name  = "KNOWLEDGE_INTELLIGENCE_REGISTRY_DOCUMENT_KEY"
+          value = "${trim(var.registry_prefix, "/")}/registry.yaml"
+        },
+        {
+          name  = "KNOWLEDGE_INTELLIGENCE_REGISTRY_APPCONFIG_APPLICATION"
+          value = var.registry_appconfig_enabled ? aws_appconfig_application.registry[0].id : ""
+        },
+        {
+          name  = "KNOWLEDGE_INTELLIGENCE_REGISTRY_APPCONFIG_ENVIRONMENT"
+          value = var.registry_appconfig_enabled ? aws_appconfig_environment.registry[0].environment_id : ""
+        },
+        {
+          name  = "KNOWLEDGE_INTELLIGENCE_REGISTRY_APPCONFIG_PROFILE"
+          value = var.registry_appconfig_enabled ? aws_appconfig_configuration_profile.registry[0].configuration_profile_id : ""
+        },
+        {
           name  = "KNOWLEDGE_INTELLIGENCE_DIAGRAM_PREFIX"
           value = var.diagram_prefix
         },

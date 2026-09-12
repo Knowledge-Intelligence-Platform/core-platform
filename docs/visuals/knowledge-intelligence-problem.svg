@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 712" width="1760" height="712" role="img" aria-label="The problem. Knowledge is scattered across Confluence, repository READMEs and Slack threads. Some was never written down, taken in calls. Ownership is unclear, so who to ask is itself a question. And the same questions are asked again and again, because every joiner starts from zero. All four lead to what we built: the Knowledge Intelligence Platform.">
+  <defs><linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10B981"/><stop offset="1" stop-color="#065F46"/></linearGradient><marker id="into" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#BE123C"/></marker></defs>
+  <rect x="20" y="20" width="940" height="150" rx="22" fill="#FFF1F2" stroke="#FBCFD5" stroke-width="2.4"/>
+  <circle cx="102" cy="95.0" r="44" fill="#BE123C"/>
+  <rect x="84" y="77.0" width="12" height="12" rx="3" fill="#ffffff"/>
+  <rect x="106" y="81.0" width="12" height="12" rx="3" fill="#ffffff"/>
+  <rect x="88" y="100.0" width="12" height="12" rx="3" fill="#ffffff"/>
+  <rect x="108" y="101.0" width="12" height="12" rx="3" fill="#ffffff"/>
+  <text x="172" y="94" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#881337">Scattered</text>
+  <text x="172" y="128" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#A33A52">Confluence, repo READMEs, Slack threads</text>
+  <path d="M966 95.0 C 1030 95.0, 1036 356.0, 1094 356.0" stroke="#BE123C" stroke-width="3" fill="none" opacity="0.5" marker-end="url(#into)"/>
+  <rect x="20" y="194" width="940" height="150" rx="22" fill="#FFF1F2" stroke="#FBCFD5" stroke-width="2.4"/>
+  <circle cx="102" cy="269.0" r="44" fill="#BE123C"/>
+  <path d="M82 253.0 h40 a6 6 0 0 1 6 6 v18 a6 6 0 0 1 -6 6 h-21 l-11 10 v-10 h-8 a6 6 0 0 1 -6 -6 v-18 a6 6 0 0 1 6 -6 z" fill="#ffffff"/>
+  <text x="172" y="268" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#881337">Never written down</text>
+  <text x="172" y="302" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#A33A52">decisions taken in calls</text>
+  <path d="M966 269.0 C 1030 269.0, 1036 356.0, 1094 356.0" stroke="#BE123C" stroke-width="3" fill="none" opacity="0.5" marker-end="url(#into)"/>
+  <rect x="20" y="368" width="940" height="150" rx="22" fill="#FFF1F2" stroke="#FBCFD5" stroke-width="2.4"/>
+  <circle cx="102" cy="443.0" r="44" fill="#BE123C"/>
+  <path d="M91 434.0 a11 11 0 1 1 11 11 v6" stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <circle cx="102" cy="462.0" r="4" fill="#ffffff"/>
+  <text x="172" y="442" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#881337">Unclear ownership</text>
+  <text x="172" y="476" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#A33A52">who to ask is itself a question</text>
+  <path d="M966 443.0 C 1030 443.0, 1036 356.0, 1094 356.0" stroke="#BE123C" stroke-width="3" fill="none" opacity="0.5" marker-end="url(#into)"/>
+  <rect x="20" y="542" width="940" height="150" rx="22" fill="#FFF1F2" stroke="#FBCFD5" stroke-width="2.4"/>
+  <circle cx="102" cy="617.0" r="44" fill="#BE123C"/>
+  <path d="M120 612.0 a18 18 0 1 0 -5 12" stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <path d="M111 610.0 l10 -2 l2 10 z" fill="#ffffff"/>
+  <text x="172" y="616" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#881337">Asked again and again</text>
+  <text x="172" y="650" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#A33A52">every joiner starts from zero</text>
+  <path d="M966 617.0 C 1030 617.0, 1036 356.0, 1094 356.0" stroke="#BE123C" stroke-width="3" fill="none" opacity="0.5" marker-end="url(#into)"/>
+  <rect x="1110" y="20" width="630" height="672" rx="26" fill="url(#panel)"/>
+  <circle cx="1425.0" cy="270" r="128" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.16"/>
+  <circle cx="1425.0" cy="270" r="98" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.26"/>
+  <circle cx="1425.0" cy="142" r="10" fill="#6EE7B7"/>
+  <circle cx="1536.0" cy="334" r="10" fill="#6EE7B7"/>
+  <circle cx="1314.0" cy="334" r="10" fill="#6EE7B7"/>
+  <circle cx="1425.0" cy="270" r="70" fill="#ffffff"/>
+  <path d="M1425.0 228 L1439.0 256 L1467.0 270 L1439.0 284 L1425.0 312 L1411.0 284 L1383.0 270 L1411.0 256 Z" fill="#064E3B"/>
+  <text x="1425.0" y="86" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#A7F3D0" text-anchor="middle" letter-spacing="2.4">SO WE BUILT</text>
+  <text x="1425.0" y="492" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="46" font-weight="700" fill="#ffffff" text-anchor="middle">Knowledge</text>
+  <text x="1425.0" y="546" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="46" font-weight="700" fill="#ffffff" text-anchor="middle">Intelligence</text>
+  <text x="1425.0" y="600" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="46" font-weight="700" fill="#6EE7B7" text-anchor="middle">Platform</text>
+</svg>

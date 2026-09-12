@@ -18,7 +18,7 @@ provider "aws" {
 }
 
 locals {
-  name_prefix         = "knowledge-intelligence"
+  name_prefix         = var.name_prefix
   alb_name            = local.name_prefix
   target_group_name   = "${local.name_prefix}-api"
   ecs_cluster_name    = local.name_prefix

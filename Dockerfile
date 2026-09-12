@@ -18,7 +18,6 @@ COPY requirements.txt ./
 RUN python -m pip install --requirement requirements.txt
 
 COPY app ./app
-COPY registry ./registry
 COPY scripts ./scripts
 COPY README.md AGENTS.md ./
 

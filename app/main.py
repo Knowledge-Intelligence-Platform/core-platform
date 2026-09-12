@@ -6,13 +6,13 @@ import json
 import logging
 import re
 import secrets
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from threading import Lock
 from time import monotonic
 from typing import cast
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
@@ -21,7 +21,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.responses import Response
 
 from app.agent import PlatformKnowledgeAgent, public_answer
+from app.appconfig import AppConfigReader
 from app.config import Settings, get_settings
+from app.coverage import Coverage, coverage, is_coverage_request
 from app.diagram_analysis import DiagramAnalyzer
 from app.embeddings import Embeddings
 from app.github_reader import GitHubReader
@@ -33,12 +35,16 @@ from app.models import (
     ReadyResponse,
     ReindexSummary,
 )
-from app.registry import ComponentRegistry
+from app.registry import ComponentRegistry, load_registry
 from app.s3_reader import S3Reader
 from app.search import HybridSearch
-from app.slack import DiagramStore, FeedbackStore, SlackIntegration
+from app.slack import (
+    DiagramStore,
+    FeedbackStore,
+    SlackIntegration,
+    mention_question,
+)
 from app.vector_store import VectorStore
-from app.waiting import waiting_message
 
 LOGGER = logging.getLogger(__name__)
 
@@ -74,6 +80,7 @@ def configure_logging() -> None:
 @dataclass
 class Application:
     settings: Settings
+    registry: ComponentRegistry
     agent: PlatformKnowledgeAgent
     search: HybridSearch
     ingestion: Ingestion
@@ -82,8 +89,45 @@ class Application:
     reindex_lock: Lock
 
 
+def _registry_sources(
+    settings: Settings, source: S3Reader
+) -> tuple[tuple[str, Callable[[str], str]], ...]:
+    """Every place this tenant's registry may be read from, best first.
+
+    All of them belong to the tenant being deployed, so a failure degrades to
+    that tenant's own older data and never to anyone else's.
+    """
+    sources: list[tuple[str, Callable[[str], str]]] = []
+    if settings.registry_appconfig_application:
+        sources.append(
+            (
+                "appconfig",
+                AppConfigReader(
+                    region=settings.aws_region,
+                    application=settings.registry_appconfig_application,
+                    environment=settings.registry_appconfig_environment,
+                    profile=settings.registry_appconfig_profile,
+                ).read_text,
+            )
+        )
+    if settings.registry_document_key:
+        sources.append(("s3", source.read_text))
+        sources.append(("s3-previous-version", source.read_previous_text))
+    return tuple(sources)
+
+
 def build_application(settings: Settings) -> Application:
-    registry = ComponentRegistry(settings.registry_directory)
+    source = S3Reader(
+        settings.aws_region,
+        settings.s3_bucket,
+        settings.max_document_size_bytes,
+    )
+    registry = load_registry(
+        directory=settings.registry_directory,
+        document_key=settings.registry_document_key,
+        cache_path=settings.registry_cache_path,
+        sources=_registry_sources(settings, source),
+    )
     embeddings = Embeddings(
         settings.openai_api_key.get_secret_value(),
         settings.embedding_model,
@@ -107,6 +151,7 @@ def build_application(settings: Settings) -> Application:
     agent = PlatformKnowledgeAgent(
         api_key=settings.openai_api_key.get_secret_value(),
         model_id=settings.openai_model,
+        platform_name=registry.root.name,
         search=search,
         maximum_results=settings.agent_max_search_results,
         conversation_window=settings.slack_conversation_window,
@@ -129,11 +174,7 @@ def build_application(settings: Settings) -> Application:
         else None
     )
     ingestion = Ingestion(
-        s3=S3Reader(
-            settings.aws_region,
-            settings.s3_bucket,
-            settings.max_document_size_bytes,
-        ),
+        s3=source,
         github=github,
         registry=registry,
         embeddings=embeddings,
@@ -177,6 +218,7 @@ def build_application(settings: Settings) -> Application:
     )
     return Application(
         settings=settings,
+        registry=registry,
         agent=agent,
         search=search,
         ingestion=ingestion,
@@ -221,7 +263,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 
 app = FastAPI(
-    title="TME Knowledge Intelligence",
+    title="Knowledge Intelligence",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -303,46 +345,20 @@ def reindex(
         current.reindex_lock.release()
 
 
-SLASH_COMMAND = "/ask-tme"
-SLACK_RESPONSE_HOST = "hooks.slack.com"
-
-
 def _ephemeral(text: str) -> JSONResponse:
     return JSONResponse({"response_type": "ephemeral", "text": text})
 
 
-def _handle_slash_command(
-    current: Application,
-    form: dict[str, list[str]],
-    background_tasks: BackgroundTasks,
-) -> JSONResponse:
-    if current.slack is None:
-        raise HTTPException(status_code=503, detail="Slack integration is not enabled.")
-    if form.get("command", [""])[0] != SLASH_COMMAND:
-        return _ephemeral("That command is not supported.")
-    question = form.get("text", [""])[0].strip()
-    if not question:
-        return _ephemeral(
-            f"Hi 👋 What would you like to know about TME? Try `{SLASH_COMMAND} What is TME?`"
-        )
-    response_url = form.get("response_url", [""])[0]
-    parsed_response_url = urlparse(response_url)
-    if (
-        parsed_response_url.scheme != "https"
-        or parsed_response_url.hostname != SLACK_RESPONSE_HOST
-    ):
-        raise HTTPException(status_code=400, detail="Invalid Slack response URL.")
-    channel_id = form.get("channel_id", [""])[0]
-    user_id = form.get("user_id", [""])[0]
-    background_tasks.add_task(
-        current.slack.process_slash,
-        question,
-        response_url,
-        f"slash:{channel_id}:{user_id}",
+def _no_commands() -> JSONResponse:
+    """Slash commands were removed; asking in words is the only way in."""
+    return _ephemeral(
+        "No commands needed \u2014 just mention me or send me a message, "
+        "and ask in your own words."
     )
-    return JSONResponse(
-        {"response_type": "in_channel", "text": waiting_message(question)}
-    )
+
+
+def _coverage(current: Application) -> Coverage:
+    return coverage(current.registry, current.search.cached_chunks())
 
 
 def _handle_interaction(
@@ -421,7 +437,12 @@ def _handle_event(
         thread_ts = event.get("thread_ts") or message_ts
         if not isinstance(thread_ts, str):
             thread_ts = message_ts
-        background_tasks.add_task(current.slack.process, channel, thread_ts, text)
+        if is_coverage_request(mention_question(text)):
+            background_tasks.add_task(
+                current.slack.post_coverage, channel, thread_ts, _coverage(current)
+            )
+        else:
+            background_tasks.add_task(current.slack.process, channel, thread_ts, text)
     return JSONResponse({"ok": True})
 
 
@@ -445,7 +466,7 @@ async def slack_events(
         return _handle_event(current, body, background_tasks)
     form = parse_qs(body.decode("utf-8"), keep_blank_values=True)
     if form.get("command", [""])[0]:
-        return _handle_slash_command(current, form, background_tasks)
+        return _no_commands()
     return _handle_interaction(current, form, background_tasks)
 
 

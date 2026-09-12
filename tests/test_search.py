@@ -8,11 +8,11 @@ from app.models import Chunk, SourceType
 from app.search import HybridSearch, _singular, _tokens
 
 CORPUS = (
-    "EKS onboarding requires a cluster request and approval",
+    "KIP Service onboarding requires a cluster request and approval",
     "Golden AMI patching lifecycle and validation runbook",
-    "Concourse pipeline observability dashboards",
-    "EKS cluster upgrade runbook with validation steps",
-    "Onboarding prerequisites for new TME users",
+    "Integration pipeline observability dashboards",
+    "KIP Service cluster upgrade runbook with validation steps",
+    "Onboarding prerequisites for new KIP users",
 )
 
 
@@ -38,7 +38,7 @@ def build_search() -> HybridSearch:
             text=text,
             source_type=SourceType.CONFLUENCE,
             source_location="s3://b/k",
-            component_id="eks-service",
+            component_id="kip-service",
         )
         for index, text in enumerate(CORPUS)
     )
@@ -49,16 +49,16 @@ def build_search() -> HybridSearch:
 
 def test_keyword_search_survives_semantic_failure() -> None:
     # The embedding provider raises; keyword results must still come back.
-    assert build_search().search("EKS cluster runbook", 5)
+    assert build_search().search("KIP Service cluster runbook", 5)
 
 
 def test_source_ids_are_sequential_from_one() -> None:
-    results = build_search().search("EKS cluster runbook", 5)
+    results = build_search().search("KIP Service cluster runbook", 5)
     assert [r.source_id for r in results] == [f"S{i}" for i in range(1, len(results) + 1)]
 
 
 def test_results_are_ranked_by_descending_score() -> None:
-    results = build_search().search("EKS onboarding", 5)
+    results = build_search().search("KIP Service onboarding", 5)
     scores = [r.score for r in results]
     assert scores == sorted(scores, reverse=True)
 
@@ -74,7 +74,7 @@ def test_blank_query_returns_nothing() -> None:
 def test_empty_index_returns_nothing() -> None:
     search = build_search()
     search.replace_keyword_cache(())
-    assert search.search("EKS", 5) == ()
+    assert search.search("KIP Service", 5) == ()
     assert search.cached_chunk_count == 0
 
 
@@ -83,11 +83,11 @@ def test_cached_chunk_count_tracks_the_index() -> None:
 
 
 def test_limit_is_respected() -> None:
-    assert len(build_search().search("EKS onboarding runbook", 2)) <= 2
+    assert len(build_search().search("KIP Service onboarding runbook", 2)) <= 2
 
 
 def test_a_plural_and_its_singular_share_a_token() -> None:
-    assert _singular("osbuilds") == _singular("osbuild") == "osbuild"
+    assert _singular("knowledge-source") == _singular("knowledge-source") == "knowledge-source"
     assert _singular("clusters") == "cluster"
 
 
@@ -99,7 +99,7 @@ def test_words_that_only_look_plural_are_left_alone() -> None:
 
 
 def test_a_query_matches_the_component_id_in_either_form() -> None:
-    assert set(_tokens("how osbuild works")) & set(_tokens("osbuilds golden ami"))
+    assert set(_tokens("how knowledge-source works")) & set(_tokens("knowledge-source golden ami"))
 
 
 def test_retrieval_is_wide_but_the_answer_gets_few() -> None:
@@ -113,7 +113,7 @@ def test_retrieval_is_wide_but_the_answer_gets_few() -> None:
             text=f"cluster onboarding text {index}",
             source_type=SourceType.CONFLUENCE,
             source_location="s3://bucket/key.pdf",
-            component_id="eks-service",
+            component_id="kip-service",
         )
 
     corpus = tuple(chunk(index) for index in range(40))
@@ -152,7 +152,7 @@ def test_a_request_larger_than_top_k_is_honoured() -> None:
             text="cluster text",
             source_type=SourceType.CONFLUENCE,
             source_location="s3://bucket/key.pdf",
-            component_id="eks-service",
+            component_id="kip-service",
         )
         for index in range(10)
     )

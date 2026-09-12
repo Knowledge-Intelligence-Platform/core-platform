@@ -1,18 +1,18 @@
-id: tme-platform
-name: TME
+id: kip-platform
+name: KIP
 
 description: |
   Telco Management Environment: the Sky platform for managing the telecommunications
-  estate covered by the Telecom Security Act. TME provides the hosting location,
+  estate covered by the Telecom Security Act. KIP provides the hosting location,
   frameworks, and supporting services used by the capabilities delivered within it.
 
 aliases:
-  - TME
+  - KIP
   - Telco Management Environment
-  - TME Platform
+  - KIP Platform
 
 documentation_prefixes:
   - raw/confluence/general
 
-owner: TME Platform Engineering
+owner: KIP Platform Engineering
 status: active

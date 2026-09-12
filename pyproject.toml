@@ -6,7 +6,7 @@
 [project]
 name = "knowledge-intelligence"
 version = "0.1.0"
-description = "Source-grounded Platform Knowledge Agent for TME"
+description = "Core Knowledge Intelligence Platform runtime"
 readme = "README.md"
 requires-python = ">=3.14"
 
@@ -53,6 +53,6 @@ module = "strands_evals.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "evaluate"
+module = "scripts.evaluate"
 disallow_subclassing_any = false
 disallow_untyped_decorators = false

@@ -16,7 +16,7 @@ def main() -> None:
     parser.add_argument(
         "question",
         nargs="?",
-        default="What is EKS as a Service?",
+        default="What is the platform service??",
     )
     arguments = parser.parse_args()
 

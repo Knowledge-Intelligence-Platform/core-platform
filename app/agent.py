@@ -42,20 +42,20 @@ INSUFFICIENT_ANSWER = "I don't have enough information to answer that reliably."
 INSTRUCTIONS_PATH = Path(__file__).with_name("instructions.md")
 
 
-def _instructions() -> str:
-    """Load the agent instructions, keeping the refusal sentence single-sourced.
+def instructions(platform_name: str) -> str:
+    """Load the agent instructions for the platform this deployment serves.
 
-    The placeholder is substituted rather than formatted, so a literal brace in
-    the instructions cannot break loading the way an f-string once could.
+    Both placeholders are substituted rather than formatted, so a literal brace
+    in the instructions cannot break loading the way an f-string once could.
+    The platform is named here and nowhere else in the prompt, so a second
+    tenant needs a registry, not a fork.
     """
     return (
         INSTRUCTIONS_PATH.read_text(encoding="utf-8")
         .replace("{INSUFFICIENT_ANSWER}", INSUFFICIENT_ANSWER)
+        .replace("{PLATFORM_NAME}", platform_name)
         .strip()
     )
-
-
-INSTRUCTIONS = _instructions()
 
 
 def _presentation_skills() -> tuple[Skill, ...]:
@@ -83,7 +83,7 @@ the passages, sources, retrieval, or backend implementation to the user.
                 (
                     grounding,
                     """
-Activate for questions about joining TME, getting started, gaining access,
+Activate for questions about joining the platform, getting started, gaining access,
 adoption, migration, prerequisites, or onboarding.
 
 Set response_type to `onboarding`. Give a brief, natural welcome only on the
@@ -99,7 +99,7 @@ visual_nodes in directional order; otherwise leave visual_nodes empty.
         ),
         Skill(
             name="service-comparison",
-            description="Give a clear, grounded comparison of supported TME services or options.",
+            description="Give a clear, grounded comparison of supported services or options.",
             instructions="\n\n".join(
                 (
                     grounding,
@@ -118,7 +118,7 @@ real relationship or sequence between the compared items.
         Skill(
             name="workflow-visualization",
             description=(
-                "Turn a supported TME workflow, architecture, lifecycle, or mapping "
+                "Turn a supported workflow, architecture, lifecycle, or mapping "
                 "into a Slack-ready high-level visual."
             ),
             instructions="\n\n".join(
@@ -148,7 +148,7 @@ BACKEND_INTRO = re.compile(
     r"(?:available|provided|retrieved)\s+(?:information|content|details)"
     r"|(?:information|content|details)\s+(?:available|provided|retrieved)"
     r")"
-    r"|using\s+the\s+approved\s+TME\s+knowledge\s+available\s+in\s+the\s+conversation"
+    r"|using\s+the\s+approved\s+.{0,40}?\s*knowledge\s+available\s+in\s+the\s+conversation"
     r")\s*[:,.-]?\s*",
     re.IGNORECASE,
 )
@@ -315,6 +315,7 @@ class PlatformKnowledgeAgent:
         *,
         api_key: str,
         model_id: str,
+        platform_name: str,
         search: HybridSearch,
         maximum_results: int,
         conversation_window: int = 20,
@@ -329,6 +330,8 @@ class PlatformKnowledgeAgent:
         aws_region: str | None = None,
     ) -> None:
         self.search = search
+        self.platform_name = platform_name
+        self.instructions = instructions(platform_name)
         self.maximum_results = maximum_results
         self.conversation_window = conversation_window
         self.metrics_enabled = metrics_enabled
@@ -475,7 +478,7 @@ class PlatformKnowledgeAgent:
     def _build_agent(self, conversation_id: str, *, persist: bool = True) -> Agent:
         agent = Agent(
             model=self.model,
-            system_prompt=INSTRUCTIONS,
+            system_prompt=self.instructions,
             plugins=[AgentSkills(skills=list(_presentation_skills()), strict=True)],
             conversation_manager=self._conversation_manager(),
             session_manager=self._session_manager(conversation_id) if persist else None,

@@ -1,0 +1,3 @@
+[mcp_servers.strands]
+command = "uvx"
+args = ["strands-agents-mcp-server"]

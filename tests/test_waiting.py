@@ -44,17 +44,17 @@ FORBIDDEN = re.compile(
 @pytest.mark.parametrize(
     ("question", "pool"),
     [
-        ("Hi there, I would like to know about TME", GREETING),
+        ("Hi there, I would like to know about KIP", GREETING),
         ("thanks!", GREETING),
-        ("How do I onboard to EKS as a Service?", ONBOARDING),
-        ("I am new to TME", ONBOARDING),
-        ("Compare Concourse and EKS", COMPARISON),
+        ("How do I onboard to KIP Service as a Service?", ONBOARDING),
+        ("I am new to KIP", ONBOARDING),
+        ("Compare Integration and KIP Service", COMPARISON),
         ("What is the difference between them?", COMPARISON),
         ("My deployment is failing", TROUBLESHOOTING),
         ("Where is the runbook?", TROUBLESHOOTING),
         ("What prerequisites do I need?", PREREQUISITES),
-        ("Who owns patch management?", OWNERSHIP),
-        ("How does TME work end to end?", WORKFLOW),
+        ("Who owns operations management?", OWNERSHIP),
+        ("How does KIP work end to end?", WORKFLOW),
         ("Tell me about golden images", GENERAL),
     ],
 )

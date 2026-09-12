@@ -1,8 +1,12 @@
 """Flow rendering for Slack.
 
-Graphviz lays the diagram out and rasterises it; the Pillow renderer below is
-kept as a fallback for environments without the `dot` binary, so a missing
-system package degrades the picture instead of losing it.
+Short flows are drawn directly: the rail renderer keeps the picture landscape
+at every step count and carries a second line per card, which Graphviz cannot.
+Beyond `RAIL_MAX_STEPS` a single column grows taller than Slack will show at a
+readable size, so Graphviz takes over and wraps the steps into two columns. It
+also stands in if the rail renderer fails, and the rail stands in when the
+`dot` binary is missing, so neither a system package nor a layout quirk loses
+the picture.
 
 Every label is drawn as given: nothing here adds, merges, or infers a step. The
 only interpretation is cosmetic — a leading stage token such as `M0` is lifted
@@ -29,6 +33,8 @@ Font = ImageFont.FreeTypeFont | ImageFont.ImageFont
 Color = tuple[int, int, int]
 
 MAXIMUM_STEPS = 8
+RAIL_MAX_STEPS = 6
+DEFAULT_FLOW_TITLE = "High-level view"
 WIDTH = 1500
 MARGIN = 64
 RAIL_X = 152
@@ -337,21 +343,29 @@ def render_mindmap(
         return None
 
 
-def render_flow(steps: Sequence[str], *, title: str = "TME high-level view") -> BytesIO:
-    """Render the grounded steps, preferring Graphviz and falling back to Pillow."""
+def render_flow(steps: Sequence[str], *, title: str = DEFAULT_FLOW_TITLE) -> BytesIO:
+    """Render the grounded steps with whichever renderer suits their number."""
     labels = [step.strip() for step in steps if step.strip()][:MAXIMUM_STEPS]
+    if len(labels) <= RAIL_MAX_STEPS:
+        try:
+            return _render_with_pillow(labels, title)
+        except OSError:
+            LOGGER.warning(
+                "Rail renderer failed; laying the flow out with Graphviz.",
+                extra={"operation": "render_flow", "component": "diagram"},
+            )
     try:
         return _render_with_graphviz(labels, title)
     except (graphviz.ExecutableNotFound, CalledProcessError, OSError):
         LOGGER.warning(
-            "Graphviz unavailable; rendering the flow with the fallback renderer.",
+            "Graphviz unavailable; rendering the flow with the rail renderer.",
             extra={"operation": "render_flow", "component": "diagram"},
         )
         return _render_with_pillow(labels, title)
 
 
 def _render_with_pillow(labels: list[str], title: str) -> BytesIO:
-    """Fallback renderer used when the Graphviz binary is unavailable."""
+    """Draw the flow as a numbered rail, one card per step."""
     title_font = _font(42, bold=True)
     subtitle_font = _font(23)
     label_font = _font(31, bold=True)

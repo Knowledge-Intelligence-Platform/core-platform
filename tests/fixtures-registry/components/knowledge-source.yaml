@@ -1,8 +1,8 @@
-id: osbuilds
+id: knowledge-source
 name: OS Builds
 
 description: |
-  TME capability responsible for building and maintaining OS images for TME managed infrastructure and applications.
+  KIP capability responsible for building and maintaining OS images for KIP managed infrastructure and applications.
 
 aliases:
   - OS Builds
@@ -10,7 +10,7 @@ aliases:
   - OS Image Management
 
 repositories:
-  - name: tme-ami-builder
+  - name: kip-ami-builder
 
 notes:
   - note: >-
@@ -19,11 +19,11 @@ notes:
       the same documented golden-image build process as RHEL. The Windows base AMI choice
       is still open, so treat base-image specifics as RHEL-only.
     recorded: 2026-08-22
-    source: TME platform discussion
+    source: KIP platform discussion
 
-part_of: tme-platform
+part_of: kip-platform
 
 documentation_prefixes:
-  - raw/confluence/osbuilds
+  - raw/confluence/knowledge-source
 
-owner: TME Platform Engineering
+owner: KIP Platform Engineering

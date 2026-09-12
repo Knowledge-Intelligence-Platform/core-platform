@@ -63,6 +63,7 @@ def build_agent(search: StubSearch, **options: Any) -> PlatformKnowledgeAgent:
     return PlatformKnowledgeAgent(
         api_key="sk-test",
         model_id="test-model",
+        platform_name="Example Platform",
         search=search,
         maximum_results=5,
         metrics_enabled=False,
@@ -130,15 +131,15 @@ def test_follow_up_turn_carries_the_previous_question(answer_payload: dict[str, 
     agent = build_agent(search)
     conversation = agent._for("C6:1.0")
     conversation.agent = StubStreamingAgent(answer_payload)  # type: ignore[assignment]
-    agent.answer_stream("What is EKS?", conversation_id="C6:1.0")
+    agent.answer_stream("What is KIP Service?", conversation_id="C6:1.0")
     agent.answer_stream("What happens next?", conversation_id="C6:1.0")
     assert "Previous question" not in search.queries[0]
-    assert "Previous question in this conversation: What is EKS?" in search.queries[1]
+    assert "Previous question in this conversation: What is KIP Service?" in search.queries[1]
 
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
-    [("C123ABC:1699.5", "C123ABC-1699-5"), ("slash:C1:U1", "slash-C1-U1"), (":::", "default")],
+    [("C123ABC:1699.5", "C123ABC-1699-5"), ("thread:C1:U1", "thread-C1-U1"), (":::", "default")],
 )
 def test_session_ids_are_storage_safe(raw: str, expected: str) -> None:
     assert _session_id(raw) == expected

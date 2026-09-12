@@ -1,54 +1,152 @@
-# Knowledge Intelligence
+# Knowledge Intelligence Platform
 
-Knowledge Intelligence Phase 1 is a source-grounded Platform Knowledge Agent for TME
-application teams, users, operations teams, and new joiners. It answers service discovery,
-onboarding, prerequisite, validation, and runbook questions from approved content.
+A source-grounded knowledge agent for KIP. Ask it a question in Slack and it answers from
+approved KIP documentation - or tells you plainly that it cannot.
 
-It is not a developer assistant and does not inspect source code, Terraform, pipelines, IAM,
-or repository internals.
+![Architecture](docs/architecture.svg)
 
-## Knowledge sources
+## What it does
 
-- Confluence PDF exports under the configured Amazon S3 prefix
-- `README.md` from repositories explicitly mapped in the component registry
-- `registry/components/*.yaml`, the authoritative component and ownership mapping
+It answers questions about KIP services, onboarding, prerequisites, validation and
+runbooks, using three approved sources and nothing else:
 
-When visual analysis is enabled, candidate PDF pages are rendered and passed to a
-vision-capable Strands agent. Its page-grounded descriptions of diagrams, workflows,
-architecture, charts, and mappings are indexed alongside extracted text.
+| Source | What it contributes |
+| --- | --- |
+| Confluence PDF exports in S3 | the bulk of KIP documentation, including descriptions of the diagrams on each page |
+| `README.md` from mapped repositories | how a component is actually used |
+| The component registry | who owns what, how components relate, and knowledge agreed outside Confluence |
 
-GitHub access uses a fine-grained read-only PAT with **Contents: read** permission. Phase 1
-does not use GitHub Apps, webhooks, repository sync, or repository scanning.
+Every answer is built from passages retrieved for that question. When the retrieved
+passages do not cover what was asked, the answer is exactly this and nothing else:
 
-## Structure
+> I don't have enough information to answer that reliably.
+
+That refusal is enforced in code, not merely requested of the model. So is everything
+around it: source markers are stripped before an answer reaches you, a diagram cannot
+accompany a refusal, and a component's contact details never enter the search index.
+
+**It is not a developer assistant.** It will not analyse source code, Terraform, pipeline
+internals, variable usage or IAM policy, and it will not describe live infrastructure
+state. Ask it what the platform *documents*, not what the platform is *currently doing*.
+
+---
+
+# User guide
+
+## Asking a question in Slack
+
+Two ways, both plain English - there are no commands to learn:
+
+- **Mention the app** in a channel: `@KIP Knowledge Hub how does operations management work?`
+- **Send it a direct message** - the same, without a channel
+- **Reply in a thread** - the app keeps the conversation, so follow-ups can say "and for
+  Windows?" without repeating the subject
+
+The answer streams in as it is written. Underneath it you may get:
+
+- **A diagram** - a flow when the answer describes an ordered process, or a radial
+  knowledge map when it breaks a subject into areas. Both are drawn only from what the
+  answer actually says.
+- **Follow-up buttons** - questions the retrieved content can genuinely answer. Click one
+  and it asks it for you.
+- **Feedback buttons** - Helpful / Partly / Not helpful. These record only a random answer
+  id, the response type, the rating and a timestamp. Never your name, your channel, your
+  question or the answer.
+
+## Asking good questions
+
+The agent answers from documentation, so questions that name a subject work best:
+
+| Instead of | Ask |
+| --- | --- |
+| "How do I get a cluster?" | "How do I onboard to KIP Service as a Service?" |
+| "What about patching?" | "How does centralised operations management work?" |
+| "Who do I talk to?" | "Who owns OS Builds?" |
+
+Follow-ups inside a thread can be short - the conversation supplies the subject.
+
+## Finding out what it knows
+
+Ask it what it knows:
 
 ```text
-app/
-    main.py              FastAPI routes and service composition
-    config.py            environment configuration
-    models.py            shared Pydantic models
-    ingestion.py         three-source ingestion flow
-    search.py            hybrid retrieval
-    embeddings.py        OpenAI embeddings
-    vector_store.py      Amazon S3 Vectors and chunk persistence
-    chunker.py            deterministic chunking
-    registry.py           authoritative component mappings
-    agent.py              single Strands Platform Knowledge Agent
-    pdf_parser.py         Confluence PDF parser
-    markdown_parser.py    GitHub README parser
-    s3_reader.py          read-only Confluence source access
-    github_reader.py      README-only GitHub access
-    slack.py              Slack delivery
-    diagram.py            Slack flow-diagram rendering
-    metrics.py            per-answer timing via agent lifecycle hooks
-    diagram_analysis.py   decides when content supports a diagram
-registry/components/     one YAML file per component
-scripts/ingest.py        explicit index rebuild
-scripts/validate_search.py
-scripts/evaluate.py      grounding and refusal scorecard
+@KIP Knowledge Hub what do you know?
 ```
 
-## Local setup
+It reports how many passages it holds, which components have Confluence documentation, a
+README, both or nothing, and how many indexed documents no component claims. This is
+computed from the index directly rather than answered by the agent, because it is knowledge
+about the system rather than about KIP.
+
+Use it when an answer surprises you. "No documentation" against a component explains a
+refusal far better than the refusal itself does.
+
+## When it refuses
+
+A refusal means the approved sources do not cover the question. Usually one of:
+
+- **the documentation does not exist** - the honest answer is that nobody has written it
+- **it exists but was never exported** - Confluence pages reach the platform as PDF exports
+  under the approved S3 prefix; a page nobody exported is invisible to it
+- **the question is out of scope** - code, Terraform, pipelines, IAM, live state
+
+It will not guess to fill the gap, which is the point. If a refusal is wrong, the fix is
+usually to export the missing page or record the knowledge as a registry note.
+
+## Using the API
+
+```bash
+curl -X POST https://<host>/knowledge/query \
+  -H 'content-type: application/json' \
+  -d '{"prompt": "How does centralised operations management work?"}'
+```
+
+```json
+{ "answer": "Centralised Patch Management is the KIP capability that ..." }
+```
+
+The response contains the answer text and nothing else. Internal source identifiers are
+never returned, and the API does not produce diagrams. Pass `conversation_id` to continue a
+conversation across calls.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | liveness |
+| `GET /ready` | readiness, including how many passages are cached |
+| `POST /knowledge/query` | ask a question |
+| `POST /slack/events` | Slack events, interactivity and the slash command |
+| `GET /diagrams/{id}.png` | serves a rendered diagram to Slack |
+| `POST /admin/reindex` | rebuild the index; requires `X-Admin-Token` |
+
+## Adding knowledge
+
+**A Confluence page** - export it as a PDF into the approved S3 prefix, then re-run
+ingestion. Anything under that prefix is approved by the act of being put there.
+
+**A repository README** - map the repository to a component in the registry.
+
+**Something that never reached Confluence** - a decision from a call, a convention nobody
+wrote down - record it as a note against the component in the registry:
+
+```yaml
+notes:
+  - note: >-
+      Windows images follow the same golden-image process as RHEL. The Windows base AMI
+      choice is still open, so treat base-image specifics as RHEL-only.
+    recorded: 2026-08-22
+    source: KIP platform discussion
+```
+
+Note text is indexed and can be used to answer questions; `recorded` and `source` are not
+indexed and exist so notes can be audited and expired. State the exception in the same note
+as the rule - asserting that one thing follows another's process lets the platform repeat
+*every* detail of that process, including the parts that do not transfer.
+
+---
+
+# Running it yourself
+
+## Setup
 
 Python 3.14 is required.
 
@@ -56,186 +154,134 @@ Python 3.14 is required.
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-Populate `.env` without committing it. Enable GitHub only when a suitable PAT is available:
-
-```dotenv
-KNOWLEDGE_INTELLIGENCE_GITHUB_ENABLED=true
-KNOWLEDGE_INTELLIGENCE_GITHUB_TOKEN=your-read-only-fine-grained-pat
-KNOWLEDGE_INTELLIGENCE_GITHUB_API_URL=https://api.github.com
-```
-
-## Tests
-
-```bash
-pip install -e ".[dev]"
-pytest
-```
-
-The suite runs entirely offline and makes no AWS, OpenAI, or Slack calls.
-
-## Ingest and validate
-
-```bash
-python scripts/ingest.py
-python scripts/validate_search.py "How do I onboard to EKS as a Service?"
-```
-
-Run the API:
+Populate `.env`, then run the API:
 
 ```bash
 fastapi dev app/main.py
 ```
 
-Available endpoints:
-
-- `GET /health`
-- `GET /ready`
-- `POST /knowledge/query`
-- `POST /admin/reindex`
-- `POST /slack/events`
-
-`POST /admin/reindex` requires `X-Admin-Token` matching
-`KNOWLEDGE_INTELLIGENCE_ADMIN_TOKEN`. Prefer `scripts/ingest.py` for controlled ingestion.
-For ECS, set `admin_reindex_enabled = true` only after adding `ADMIN_TOKEN` to the
-Terraform-managed Secrets Manager JSON. The same secret uses `OPENAI_API_KEY`,
-`GITHUB_TOKEN` when GitHub is enabled, and the Slack token keys when Slack is enabled.
-
-Example query:
+Diagram rendering uses Graphviz. Without the `dot` binary the platform falls back to a
+plainer renderer rather than failing:
 
 ```bash
-curl -sS http://localhost:8000/knowledge/query \
-  -H 'Content-Type: application/json' \
-  -d '{"prompt":"What is EKS as a Service?"}'
+brew install graphviz
 ```
 
-The public query response contains only the end-user answer. Source details and internal
-identifiers such as `[S1]` are retained for grounding and are not returned to API or Slack
-users.
+## Indexing
 
-When retrieved information supports a workflow, process, architecture, lifecycle, or
-component mapping, Slack automatically adds a compact high-level flow diagram. The API
-continues to return only the answer.
-
-## Intelligent Slack experience
-
-Slack adds Phase 1 knowledge-sharing capabilities without changing the public API:
-
-- guided onboarding journeys when supported steps are available
-- service comparisons grounded across approved component knowledge
-- connected component, repository, Confluence, and architecture mappings
-- proactive high-level workflow visuals
-- two or three grounded suggested follow-up questions
-- clickable follow-up buttons that continue in the same Slack thread
-- Helpful, Partly, and Not helpful feedback buttons
-- answers that stream into the message as they are written
-
-Answers are delivered progressively: the placeholder message fills in while the answer is
-generated, throttled to respect Slack rate limits. Disable with
-`KNOWLEDGE_INTELLIGENCE_SLACK_STREAMING_ENABLED=false`. Slash-command replies remain
-non-streaming because `response_url` posts new messages instead of editing one.
-
-Set `KNOWLEDGE_INTELLIGENCE_SESSION_PERSISTENCE_ENABLED=true` to back each thread with
-Amazon S3 so conversations survive a task restart, and
-`KNOWLEDGE_INTELLIGENCE_CONVERSATION_SUMMARIZATION_ENABLED=true` to summarize older turns
-instead of dropping them.
-
-Each Slack thread receives an independent Strands conversation with a bounded sliding
-window. Recent user questions, answers, and tool results are retained for two hours in
-application memory, allowing follow-ups such as “What happens after approval?” without
-repeating the service name. The agent still performs a fresh search for every answer.
-Conversation content is not written to feedback storage.
-
-Configure the Slack app's **Interactivity & Shortcuts** Request URL to the same signed
-endpoint used by Events API:
-
-```text
-https://<api-gateway-host>/slack/events
+```bash
+python scripts/ingest.py
 ```
 
-Configure the `/ask-tme` slash command with the same Request URL:
+Confluence parsing and visual analysis dominate the cost of a run, so rebuild only what
+changed:
 
-```text
-https://<api-gateway-host>/slack/events
+```bash
+python scripts/ingest.py --source registry
+python scripts/ingest.py --source github --source registry
 ```
 
-Examples:
+Sources you do not select keep their existing content - a subset run never prunes the rest.
 
-```text
-/ask-tme What is TME?
-/ask-tme How does Golden AMI work?
+If the vector index is lost but the chunk store survives, do not re-ingest. Re-embedding
+the stored chunks costs embedding calls only:
+
+```bash
+python scripts/rebuild_vectors.py
 ```
 
-Slash-command responses are visible in the channel so the user's question and the agent's
-answer remain together as a normal conversation. To use `@TME Knowledge Hub` mentions in a
-channel, add the app to that channel first.
+## Checking a change
 
-Feedback stored under `feedback/slack/` contains only:
-
-- random answer ID
-- response category
-- rating
-- timestamp
-
-It does not contain the Slack user, channel, question, answer, source text, or conversation.
-
-Enable PDF diagram understanding with:
-
-```dotenv
-KNOWLEDGE_INTELLIGENCE_VISUAL_ANALYSIS_ENABLED=true
-KNOWLEDGE_INTELLIGENCE_VISUAL_ANALYSIS_MODEL=
-KNOWLEDGE_INTELLIGENCE_VISUAL_RENDER_DPI=144
-KNOWLEDGE_INTELLIGENCE_VISUAL_MAX_PAGES_PER_DOCUMENT=10
-KNOWLEDGE_INTELLIGENCE_SLACK_CONVERSATION_WINDOW=20
-KNOWLEDGE_INTELLIGENCE_FEEDBACK_PREFIX=feedback/slack
+```bash
+python scripts/validate_search.py "How do I onboard to KIP Service as a Service?"
 ```
 
-The selected OpenAI model must support image input. Leaving the visual model empty uses
-`KNOWLEDGE_INTELLIGENCE_OPENAI_MODEL`. Re-run `scripts/ingest.py` after enabling it.
-Visual calls occur only for candidate pages and incur model usage.
-
-## Evaluation
-
-Score the agent against the approved dataset in `evals/datasets/`:
+Prints the answer the agent would give, plus the structured fields behind it - useful for
+seeing whether a question produces a flow, a map, or a refusal before trying it in Slack.
 
 ```bash
 python scripts/evaluate.py
 python scripts/evaluate.py --judge
 ```
 
-The default run uses deterministic evaluators — refusal discipline, forbidden-claim
-detection, expected-term coverage, and internal-wording leakage — and costs only the agent
-calls. `--judge` adds the Strands LLM-as-judge faithfulness and refusal evaluators, which
-make additional model calls. Both write a Markdown scorecard to
-`evals/reports/platform_knowledge.md`.
+Scores the agent against `evals/datasets/*.yaml` and writes a scorecard to
+`evals/reports/`. The deterministic evaluators check refusal discipline, forbidden claims,
+expected coverage and internal leakage. `--judge` adds LLM-as-judge faithfulness and
+refusal evaluators, which make extra model calls.
 
-## Container and AWS
+## Tests and checks
+
+Everything runs offline - no AWS, OpenAI or Slack calls:
 
 ```bash
-docker build -t knowledge-intelligence .
-docker run --rm --env-file .env -p 8000:8000 knowledge-intelligence
+pytest
+ruff check .
+mypy
 ```
 
-Deploy the complete AWS environment non-interactively:
+## Deploying
 
 ```bash
 ./deploy.sh
 ```
 
-The deployment script:
+Initialises the Terraform backend, creates ECR first, builds and pushes the image, applies
+the rest, and waits for the service to stabilise. It needs `infra/backend.hcl` (copy
+`infra/backend.hcl.example`) and `infra/terraform.tfvars`.
 
-1. initializes the configured Terraform backend
-2. creates the ECR repository first
-3. builds and pushes only the `latest` image
-4. applies the remaining Terraform resources
-5. forces ECS to pull the newly published image
-6. waits for the ECS service to become stable
+If the component registry has been published but never deployed, it also starts that first
+AppConfig deployment before restarting the service, so the new task reads the published
+registry rather than the copy bundled in the image. It never publishes the registry itself -
+changes to the registry go through its own repository.
 
-It uses `infra/backend.hcl` and `infra/terraform.tfvars` by default. Alternative
-Terraform files can be selected using `BACKEND_CONFIG` and `TFVARS_FILE`; paths
-are resolved from the `infra/` directory.
+The image is built for `linux/amd64` because Fargate runs x86 - a native build on Apple
+Silicon will not start.
 
-The container remains compatible with the Terraform-managed ECS, S3, S3 Vectors,
-Secrets Manager, CloudWatch, ALB, and API Gateway resources.
+`destroy_resources.sh` tears down the compute while preserving S3, S3 Vectors, Secrets
+Manager, ECR and AppConfig, so teardown never costs you the embeddings, the parsed content,
+or the registry's identifiers and deployment history.
+
+## Configuration
+
+All settings use the `KNOWLEDGE_INTELLIGENCE_` prefix. Required:
+
+| Setting | Purpose |
+| --- | --- |
+| `S3_BUCKET` | bucket holding Confluence exports, chunks and diagrams |
+| `OPENAI_API_KEY` | model access |
+| `OPENAI_MODEL` | the answering model |
+| `VECTOR_BUCKET_NAME` | S3 Vectors bucket |
+
+Frequently changed:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `VECTOR_TOP_K` | `25` | candidates retrieved from each side before fusion |
+| `AGENT_MAX_SEARCH_RESULTS` | `5` | passages passed to the model |
+| `VISUAL_ANALYSIS_ENABLED` | `true` | describe diagrams on PDF pages during ingestion |
+| `INGEST_UNMAPPED_DOCUMENTS` | `true` | index documents no component maps, without an owner |
+| `SLACK_ENABLED` | `false` | enable Slack delivery |
+| `GITHUB_ENABLED` | `false` | enable README ingestion |
+| `SESSION_PERSISTENCE_ENABLED` | `false` | keep Slack threads across a restart |
+| `REGISTRY_DOCUMENT_KEY` | – | read the published registry from S3 instead of the bundled copy |
+| `REGISTRY_APPCONFIG_APPLICATION` | – | read the registry through AWS AppConfig |
+
+In AWS, one Secrets Manager entry carries `OPENAI_API_KEY`, the Slack tokens, and
+`GITHUB_TOKEN` and `ADMIN_TOKEN` where used. Terraform reads that secret; it does not
+create it.
+
+## Privacy
+
+The platform is deliberately incurious about people. Feedback records no user, channel,
+question or answer. Logs carry a correlation id, an operation and a duration - never
+document text, embeddings or personal data. A component's `contact` details and a note's
+provenance are held structurally and never reach the search index or the model prompt.
+
+## Further reading
+
+- `AGENTS.md` - the product specification: grounding, presentation and boundary rules
+- `../CLAUDE.md` - how the code is built, and the invariants worth knowing before changing it

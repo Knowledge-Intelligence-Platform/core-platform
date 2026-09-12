@@ -7,14 +7,14 @@ aliases:
   - Logging & Monitoring
 
 description: |
-  TME capability responsible for observability of TME managed infrastructure and applications.
+  KIP capability responsible for observability of KIP managed infrastructure and applications.
 
 repositories:
-  - name: tme-observability
+  - name: kip-observability
 
-part_of: tme-platform
+part_of: kip-platform
 
 documentation_prefixes:
   - raw/confluence/observability
 
-owner: TME Platform Engineering
+owner: KIP Platform Engineering

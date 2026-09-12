@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import threading
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -12,6 +13,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.models import KnowledgeAnswer, ReindexSummary
+from app.registry import ComponentRegistry
 from app.slack import SlackAction
 
 ADMIN_TOKEN = "s3cret-admin-token"
@@ -57,8 +59,8 @@ class StubSlack:
     def process(self, channel: str, thread_ts: str, text: str) -> None:
         self.recorder.calls.append(("process", channel, thread_ts, text))
 
-    def process_slash(self, question: str, response_url: str, conversation_id: str) -> None:
-        self.recorder.calls.append(("slash", question, response_url, conversation_id))
+    def post_coverage(self, channel: str, thread_ts: str, report: Any) -> None:
+        self.recorder.calls.append(("coverage", channel, thread_ts))
 
     def record(self, action: SlackAction) -> None:
         self.recorder.calls.append(("feedback", action.rating))
@@ -118,8 +120,9 @@ def slack(recorder: Recorder) -> StubSlack:
 def client(recorder: Recorder, slack: StubSlack) -> Iterator[TestClient]:
     main.app.state.application = main.Application(
         settings=StubSettings(),  # type: ignore[arg-type]
+        registry=ComponentRegistry(Path("tests/fixtures-registry/components")),
         agent=StubAgent(recorder),  # type: ignore[arg-type]
-        search=type("S", (), {"cached_chunk_count": 42})(),  # type: ignore[arg-type]
+        search=type("S", (), {"cached_chunk_count": 42, "cached_chunks": lambda self: ()})(),  # type: ignore[arg-type]
         ingestion=StubIngestion(),  # type: ignore[arg-type]
         vector_store_reachable=True,
         slack=slack,  # type: ignore[arg-type]
@@ -176,12 +179,12 @@ def test_ready_reports_index_state(client: TestClient) -> None:
 
 
 def test_query_returns_only_the_answer(client: TestClient) -> None:
-    body = client.post("/knowledge/query", json={"prompt": "What is EKS?"}).json()
+    body = client.post("/knowledge/query", json={"prompt": "What is KIP Service?"}).json()
     assert set(body) == {"answer"}
 
 
 def test_query_strips_internal_source_markers(client: TestClient) -> None:
-    body = client.post("/knowledge/query", json={"prompt": "What is EKS?"}).json()
+    body = client.post("/knowledge/query", json={"prompt": "What is KIP Service?"}).json()
     assert "[S1]" not in body["answer"]
 
 
@@ -225,6 +228,36 @@ def test_app_mention_is_dispatched(client: TestClient, recorder: Recorder) -> No
     assert ("process", "C9", "111.1", "hi") in recorder.calls
 
 
+def test_a_mentioned_coverage_question_never_reaches_the_agent(
+    client: TestClient, recorder: Recorder
+) -> None:
+    event = {
+        "type": "app_mention",
+        "channel": "C9",
+        "text": "<@U123> what do you know",
+        "ts": "111.2",
+    }
+    client.post("/slack/events", json={"event_id": "E9", "event": event})
+
+    assert ("coverage", "C9", "111.2") in recorder.calls
+    assert not any(call[0] == "process" for call in recorder.calls)
+
+
+def test_a_mentioned_ordinary_question_still_reaches_the_agent(
+    client: TestClient, recorder: Recorder
+) -> None:
+    event = {
+        "type": "app_mention",
+        "channel": "C9",
+        "text": "<@U123> how do I onboard",
+        "ts": "111.3",
+    }
+    client.post("/slack/events", json={"event_id": "E10", "event": event})
+
+    assert not any(call[0] == "coverage" for call in recorder.calls)
+    assert any(call[0] == "process" for call in recorder.calls)
+
+
 def test_duplicate_events_are_ignored(client: TestClient, recorder: Recorder) -> None:
     event = {"type": "app_mention", "channel": "C9", "text": "hi", "ts": "111.1"}
     client.post("/slack/events", json={"event_id": "E2", "event": event})
@@ -241,32 +274,6 @@ def test_bot_messages_are_ignored(client: TestClient, recorder: Recorder) -> Non
 
 def test_malformed_event_payload_is_rejected(client: TestClient) -> None:
     assert client.post("/slack/events", content=b"{oops").status_code == 400
-
-
-def test_slash_command_acknowledges_in_channel(client: TestClient, recorder: Recorder) -> None:
-    body = "command=/ask-tme&text=What is TME&response_url=https://hooks.slack.com/x"
-    response = client.post("/slack/events", headers=FORM, content=body)
-    assert response.json()["response_type"] == "in_channel"
-    assert any(call[0] == "slash" for call in recorder.calls)
-
-
-def test_unsupported_slash_command_is_ephemeral(client: TestClient) -> None:
-    body = "command=/other&text=hi&response_url=https://hooks.slack.com/x"
-    assert client.post("/slack/events", headers=FORM, content=body).json()["response_type"] == (
-        "ephemeral"
-    )
-
-
-def test_empty_slash_text_prompts_the_user(client: TestClient) -> None:
-    body = "command=/ask-tme&text=&response_url=https://hooks.slack.com/x"
-    assert "What would you like" in client.post("/slack/events", headers=FORM, content=body).json()[
-        "text"
-    ]
-
-
-def test_response_url_must_belong_to_slack(client: TestClient) -> None:
-    body = "command=/ask-tme&text=hi&response_url=https://evil.example.com/x"
-    assert client.post("/slack/events", headers=FORM, content=body).status_code == 400
 
 
 def test_followup_button_continues_the_thread(client: TestClient, recorder: Recorder) -> None:
@@ -291,8 +298,9 @@ def test_unknown_interaction_is_ignored(client: TestClient, recorder: Recorder) 
 def test_unhandled_errors_return_a_safe_message(recorder: Recorder, slack: StubSlack) -> None:
     main.app.state.application = main.Application(
         settings=StubSettings(),  # type: ignore[arg-type]
+        registry=ComponentRegistry(Path("tests/fixtures-registry/components")),
         agent=ExplodingAgent(),  # type: ignore[arg-type]
-        search=type("S", (), {"cached_chunk_count": 0})(),  # type: ignore[arg-type]
+        search=type("S", (), {"cached_chunk_count": 0, "cached_chunks": lambda self: ()})(),  # type: ignore[arg-type]
         ingestion=StubIngestion(),  # type: ignore[arg-type]
         vector_store_reachable=True,
         slack=slack,  # type: ignore[arg-type]
@@ -305,3 +313,14 @@ def test_unhandled_errors_return_a_safe_message(recorder: Recorder, slack: StubS
     assert "internal detail" not in response.text
     assert "X-Correlation-ID" in response.headers
     main.app.state.application = None
+
+
+def test_a_slash_command_is_redirected_to_natural_language(
+    client: TestClient, recorder: Recorder
+) -> None:
+    body = "command=/ask-kip&text=What is KIP&response_url=https://hooks.slack.com/x"
+    payload = client.post("/slack/events", headers=FORM, content=body).json()
+
+    assert payload["response_type"] == "ephemeral"
+    assert "mention me" in payload["text"]
+    assert recorder.calls == []

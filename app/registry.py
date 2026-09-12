@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import logging
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -10,12 +12,123 @@ import yaml
 
 from app.models import Component, ContentBlock, ParsedDocument, SourceType
 
-DEFAULT_GITHUB_ORGANIZATION = "sky-uk"
+LOGGER = logging.getLogger(__name__)
+DEFAULT_GITHUB_ORGANIZATION = "example-org"
+
+
+def load_registry(
+    *,
+    directory: Path,
+    document_key: str = "",
+    cache_path: Path | None = None,
+    sources: Sequence[tuple[str, Callable[[str], str]]] = (),
+) -> ComponentRegistry:
+    """Load the registry this deployment should use.
+
+    Without sources this is the local directory, which is what tests and
+    development use. With them each is tried in order, the first document that
+    loads cleanly wins, and the last document this task loaded is the final
+    fallback. Every source belongs to one tenant, and nothing bundled in the
+    image is ever reached: coming up with another tenant's mappings would be
+    worse than not coming up at all.
+    """
+    if not sources:
+        return ComponentRegistry(directory)
+    for name, fetch in sources:
+        try:
+            document = fetch(document_key)
+            registry = ComponentRegistry.from_document(document)
+        except Exception:
+            LOGGER.exception(
+                "Component registry source unavailable; trying the next.",
+                extra={
+                    "operation": "load_registry",
+                    "component": "registry",
+                    "registry_source": name,
+                },
+            )
+            continue
+        _remember(document, cache_path)
+        return registry
+    return _last_known_good(cache_path)
+
+
+def _remember(document: str, cache_path: Path | None) -> None:
+    if cache_path is None:
+        return
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(document, encoding="utf-8")
+    except OSError:
+        LOGGER.warning(
+            "Component registry cache could not be written.",
+            extra={"operation": "load_registry", "component": "registry"},
+        )
+
+
+def _last_known_good(cache_path: Path | None) -> ComponentRegistry:
+    if cache_path is not None and cache_path.is_file():
+        try:
+            registry = ComponentRegistry.from_document(cache_path)
+            LOGGER.warning(
+                "Serving the last known-good component registry.",
+                extra={"operation": "load_registry", "component": "registry"},
+            )
+            return registry
+        except Exception:
+            LOGGER.exception(
+                "Cached component registry is unusable.",
+                extra={"operation": "load_registry", "component": "registry"},
+            )
+    raise RuntimeError(
+        "No component registry could be loaded from any configured source."
+    )
 
 
 class ComponentRegistry:
+    """The authoritative component mappings, however they were stored.
+
+    A directory of one file per component is what maintainers edit; a single
+    merged document is what gets deployed. Both go through the same validation,
+    so a document can never carry rules a directory would have rejected.
+    """
+
     def __init__(self, directory: Path) -> None:
-        self.components = self._load(directory)
+        self.components = self._validated(self._load(directory))
+
+    @classmethod
+    def from_components(cls, components: Iterable[Component]) -> ComponentRegistry:
+        registry = cls.__new__(cls)
+        registry.components = cls._validated(tuple(components))
+        return registry
+
+    @classmethod
+    def from_document(cls, source: Path | str) -> ComponentRegistry:
+        """Load the merged document that CI publishes and the app deploys."""
+        raw = source.read_text(encoding="utf-8") if isinstance(source, Path) else source
+        document = yaml.safe_load(raw) or {}
+        if not isinstance(document, dict):
+            raise ValueError("Registry document must be a mapping with a components key.")
+        entries = document.get("components")
+        if not isinstance(entries, list) or not entries:
+            raise ValueError("Registry document contains no components.")
+        return cls.from_components(
+            Component.model_validate(entry) for entry in entries
+        )
+
+    def as_document(self) -> str:
+        """Render the registry as the single document a deployment consumes."""
+        return yaml.safe_dump(
+            {
+                "components": [
+                    component.model_dump(mode="json", exclude_defaults=True)
+                    for component in self.components
+                ]
+            },
+            sort_keys=False,
+            allow_unicode=True,
+            default_flow_style=False,
+        )
 
     @staticmethod
     def _load(directory: Path) -> tuple[Component, ...]:
@@ -29,6 +142,12 @@ class ComponentRegistry:
             components.append(Component.model_validate(yaml.safe_load(raw)))
         if not components:
             raise ValueError(f"Component registry contains no components: {directory}")
+        return tuple(components)
+
+    @staticmethod
+    def _validated(components: tuple[Component, ...]) -> tuple[Component, ...]:
+        if not components:
+            raise ValueError("Component registry contains no components.")
         ids = [component.id for component in components]
         if len(ids) != len(set(ids)):
             raise ValueError("Component registry contains duplicate component IDs.")
@@ -41,8 +160,18 @@ class ComponentRegistry:
                     )
                 if related.id == component.id:
                     raise ValueError(f"{component.id} is related to itself.")
+        claimed: dict[str, str] = {}
+        for component in components:
+            for prefix in component.documentation_prefixes:
+                owner = claimed.get(prefix)
+                if owner is not None:
+                    raise ValueError(
+                        f"{component.id} and {owner} both claim the prefix: {prefix}"
+                    )
+                claimed[prefix] = component.id
         ComponentRegistry._validate_hierarchy(tuple(components), known)
         return tuple(components)
+
 
     @staticmethod
     def _validate_hierarchy(components: tuple[Component, ...], known: set[str]) -> None:
@@ -67,6 +196,14 @@ class ComponentRegistry:
                     raise ValueError(f"Component hierarchy has a cycle at {current}.")
                 seen.add(current)
                 current = parents[current]
+
+    @property
+    def root(self) -> Component:
+        """The component every other is part of: the platform itself."""
+        for component in self.components:
+            if component.part_of is None:
+                return component
+        raise ValueError("The registry has no root component.")
 
     def children_of(self, component_id: str) -> tuple[Component, ...]:
         return tuple(
@@ -142,7 +279,7 @@ class ComponentRegistry:
                     ).hexdigest(),
                     title=f"{component.name} component registry",
                     source_type=SourceType.REGISTRY,
-                    source_location=f"registry/components/{component.id}.yaml",
+                    source_location=f"tenant-provided registry data/{component.id}.yaml",
                     component_id=component.id,
                     blocks=(ContentBlock(text=text),),
                 )

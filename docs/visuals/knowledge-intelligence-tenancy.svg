@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 864" width="1760" height="864" role="img" aria-label="How multi-tenancy works. One codebase: the same software is deployed once per team. Each team — the Intelligence Platform, TME, and any team joining next — gets its own chat bot, its own documents, its own search index, and its own running service, plus its own registry that the team edits itself. Nothing crosses between teams: each copy only ever knows about its own.">
+  <defs>
+    <marker id="down" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#94A3B8"/></marker>
+  </defs>
+  <rect x="24" y="24" width="1712" height="122" rx="22" fill="#0F172A"/>
+  <text x="64" y="72" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#7DD3FC" letter-spacing="2.4">ONE CODEBASE</text>
+  <text x="64" y="116" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="33" font-weight="700" fill="#ffffff">The same software, deployed once per team</text>
+  <path d="M296.0 146 V 180" stroke="#94A3B8" stroke-width="2.6" fill="none" marker-end="url(#down)"/>
+  <rect x="24.0" y="192" width="544.0" height="524" rx="22" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="2.4"/>
+  <rect x="46.0" y="214" width="500.0" height="62" rx="15" fill="#047857"/>
+  <text x="296.0" y="255" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">Intelligence Platform</text>
+  <rect x="46.0" y="292" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="88.0" cy="329.0" r="23" fill="#047857"/>
+  <rect x="76.0" y="319.0" width="24" height="18" rx="6" fill="#ffffff"/>
+  <path d="M82.0 337.0 l0 7 l8 -7 z" fill="#ffffff"/>
+  <text x="124.0" y="325" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own chat bot</text>
+  <text x="124.0" y="348" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">its own Slack app</text>
+  <rect x="46.0" y="378" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="88.0" cy="415.0" r="23" fill="#047857"/>
+  <path d="M78.0 403.0 h13 l7 7 v17 h-20 z" fill="#ffffff"/>
+  <text x="124.0" y="411" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own documents</text>
+  <text x="124.0" y="434" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">only this team's exports</text>
+  <rect x="46.0" y="464" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="88.0" cy="501.0" r="23" fill="#047857"/>
+  <circle cx="85.0" cy="498.0" r="8" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+  <path d="M92.0 505.0 l7 7" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round"/>
+  <text x="124.0" y="497" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own search index</text>
+  <text x="124.0" y="520" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">nothing else is in it</text>
+  <rect x="46.0" y="550" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="88.0" cy="587.0" r="23" fill="#047857"/>
+  <rect x="76.0" y="576.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <rect x="76.0" y="585.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <rect x="76.0" y="594.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <text x="124.0" y="583" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own service</text>
+  <text x="124.0" y="606" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">its own running copy</text>
+  <rect x="46.0" y="640" width="500.0" height="56" rx="13" fill="#ffffff" stroke="#A7F3D0" stroke-width="1.6"/>
+  <path d="M70.0 660 h9 l3 -5 h13 v18 h-25 z" fill="#047857"/>
+  <text x="108.0" y="674" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#047857">Own registry, edited by the team</text>
+  <path d="M880.0 146 V 180" stroke="#94A3B8" stroke-width="2.6" fill="none" marker-end="url(#down)"/>
+  <rect x="608.0" y="192" width="544.0" height="524" rx="22" fill="#EEF2FF" stroke="#C7D2FE" stroke-width="2.4"/>
+  <rect x="630.0" y="214" width="500.0" height="62" rx="15" fill="#4338CA"/>
+  <text x="880.0" y="255" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">TME</text>
+  <rect x="630.0" y="292" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="672.0" cy="329.0" r="23" fill="#4338CA"/>
+  <rect x="660.0" y="319.0" width="24" height="18" rx="6" fill="#ffffff"/>
+  <path d="M666.0 337.0 l0 7 l8 -7 z" fill="#ffffff"/>
+  <text x="708.0" y="325" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own chat bot</text>
+  <text x="708.0" y="348" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">its own Slack app</text>
+  <rect x="630.0" y="378" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="672.0" cy="415.0" r="23" fill="#4338CA"/>
+  <path d="M662.0 403.0 h13 l7 7 v17 h-20 z" fill="#ffffff"/>
+  <text x="708.0" y="411" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own documents</text>
+  <text x="708.0" y="434" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">only this team's exports</text>
+  <rect x="630.0" y="464" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="672.0" cy="501.0" r="23" fill="#4338CA"/>
+  <circle cx="669.0" cy="498.0" r="8" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+  <path d="M676.0 505.0 l7 7" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round"/>
+  <text x="708.0" y="497" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own search index</text>
+  <text x="708.0" y="520" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">nothing else is in it</text>
+  <rect x="630.0" y="550" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="672.0" cy="587.0" r="23" fill="#4338CA"/>
+  <rect x="660.0" y="576.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <rect x="660.0" y="585.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <rect x="660.0" y="594.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <text x="708.0" y="583" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own service</text>
+  <text x="708.0" y="606" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">its own running copy</text>
+  <rect x="630.0" y="640" width="500.0" height="56" rx="13" fill="#ffffff" stroke="#C7D2FE" stroke-width="1.6"/>
+  <path d="M654.0 660 h9 l3 -5 h13 v18 h-25 z" fill="#4338CA"/>
+  <text x="692.0" y="674" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#4338CA">Own registry, edited by the team</text>
+  <path d="M1464.0 146 V 180" stroke="#94A3B8" stroke-width="2.6" fill="none" marker-end="url(#down)"/>
+  <rect x="1192.0" y="192" width="544.0" height="524" rx="22" fill="#F8FAFC" stroke="#CBD5E1" stroke-width="2.4" stroke-dasharray="9 7"/>
+  <rect x="1214.0" y="214" width="500.0" height="62" rx="15" fill="#64748B"/>
+  <text x="1464.0" y="255" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">Your team next</text>
+  <rect x="1214.0" y="292" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="1256.0" cy="329.0" r="23" fill="#64748B"/>
+  <rect x="1244.0" y="319.0" width="24" height="18" rx="6" fill="#ffffff"/>
+  <path d="M1250.0 337.0 l0 7 l8 -7 z" fill="#ffffff"/>
+  <text x="1292.0" y="325" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own chat bot</text>
+  <text x="1292.0" y="348" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">its own Slack app</text>
+  <rect x="1214.0" y="378" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="1256.0" cy="415.0" r="23" fill="#64748B"/>
+  <path d="M1246.0 403.0 h13 l7 7 v17 h-20 z" fill="#ffffff"/>
+  <text x="1292.0" y="411" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own documents</text>
+  <text x="1292.0" y="434" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">only this team's exports</text>
+  <rect x="1214.0" y="464" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="1256.0" cy="501.0" r="23" fill="#64748B"/>
+  <circle cx="1253.0" cy="498.0" r="8" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+  <path d="M1260.0 505.0 l7 7" stroke="#ffffff" stroke-width="3.6" stroke-linecap="round"/>
+  <text x="1292.0" y="497" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own search index</text>
+  <text x="1292.0" y="520" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">nothing else is in it</text>
+  <rect x="1214.0" y="550" width="500.0" height="74" rx="13" fill="#ffffff"/>
+  <circle cx="1256.0" cy="587.0" r="23" fill="#64748B"/>
+  <rect x="1244.0" y="576.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <rect x="1244.0" y="585.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <rect x="1244.0" y="594.0" width="24" height="6" rx="2.5" fill="#ffffff"/>
+  <text x="1292.0" y="583" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#101828">Own service</text>
+  <text x="1292.0" y="606" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="600" fill="#64748B">its own running copy</text>
+  <rect x="1214.0" y="640" width="500.0" height="56" rx="13" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.6"/>
+  <path d="M1238.0 660 h9 l3 -5 h13 v18 h-25 z" fill="#64748B"/>
+  <text x="1276.0" y="674" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#64748B">Own registry, edited by the team</text>
+  <path d="M588.0 198 V 710" stroke="#CBD5E1" stroke-width="2.4" stroke-dasharray="6 8" fill="none"/>
+  <path d="M1172.0 198 V 710" stroke="#CBD5E1" stroke-width="2.4" stroke-dasharray="6 8" fill="none"/>
+  <rect x="24" y="748" width="1712" height="92" rx="20" fill="#FFFBEB"/>
+  <circle cx="86" cy="794.0" r="26" fill="#D97706"/>
+  <path d="M76 792.0 v-6 a10 10 0 0 1 20 0 v6" fill="none" stroke="#ffffff" stroke-width="4"/>
+  <rect x="74" y="791.0" width="24" height="17" rx="4" fill="#ffffff"/>
+  <text x="132" y="803.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="26" font-weight="700" fill="#92400E">Nothing crosses between teams — each copy only ever knows about its own</text>
+</svg>

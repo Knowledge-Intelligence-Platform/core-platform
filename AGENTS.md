@@ -2,13 +2,13 @@
 
 ## Project goal
 
-Knowledge Intelligence Phase 1 is a Platform Knowledge Agent that helps TME users discover
-and understand TME services using approved information.
+Knowledge Intelligence Phase 1 is a Platform Knowledge Agent that helps KIP users discover
+and understand KIP services using approved information.
 
 The intended users are:
 
 - Application Teams
-- TME Users
+- KIP Users
 - Operations Teams
 - New Onboarded Users
 
@@ -19,7 +19,7 @@ source-code investigation.
 
 The agent may answer questions such as:
 
-- What is a TME service?
+- What is a KIP service?
 - What are its prerequisites?
 - Which registered repository should a user access?
 - How does onboarding work?
@@ -44,7 +44,7 @@ Phase 1 supports exactly three sources:
 
 1. Confluence PDF exports stored under the configured Amazon S3 prefix.
 2. GitHub `README.md` files from repositories mapped by the Component Registry.
-3. Component definitions stored in `registry/components/*.yaml`.
+3. Component definitions stored in `tenant-provided registry data`.
 
 Do not add DOCX, PPTX, XLSX, source-code, pipeline, Terraform, or shell-script ingestion.
 PDF ingestion may render candidate pages for diagram understanding through a
@@ -129,7 +129,7 @@ app/
     github_reader.py
     slack.py
 
-registry/components/
+tenant-provided registry data/
 scripts/ingest.py
 scripts/validate_search.py
 requirements.txt
@@ -199,6 +199,8 @@ Keep only these application endpoints:
 - `POST /knowledge/query`
 - `POST /admin/reindex`
 - `POST /slack/events`
+- Coverage requests ("what do you know") are answered from the index directly, never by the
+  agent: no retrieved passage supports a statement about the system itself.
 - `GET /diagrams/{id}.png` — serves a rendered diagram to Slack's image fetcher only
 
 Do not reintroduce change-impact, repository-analysis, evaluation, visual-processing,

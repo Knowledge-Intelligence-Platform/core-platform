@@ -24,6 +24,12 @@ while IFS= read -r address; do
     data.*|*.data.*|aws_s3_*|*.aws_s3_*|aws_s3vectors_*|*.aws_s3vectors_*|aws_secretsmanager_*|*.aws_secretsmanager_*|aws_ecr_*|*.aws_ecr_*)
       preserved_resources+=("${address}")
       ;;
+    aws_appconfig_*|*.aws_appconfig_*)
+      preserved_resources+=("${address}")
+      ;;
+    aws_iam_role.appconfig_retrieval*|aws_iam_policy.appconfig_retrieval*|aws_iam_role_policy_attachment.appconfig_retrieval*)
+      preserved_resources+=("${address}")
+      ;;
     *)
       destroy_targets+=("-target=${address}")
       ;;
@@ -35,9 +41,10 @@ if ((${#destroy_targets[@]} == 0)); then
   exit 0
 fi
 
-echo "Terraform-managed S3, S3 Vectors, Secrets Manager, and ECR resources intentionally preserved:"
+echo "Terraform-managed S3, S3 Vectors, Secrets Manager, ECR, and AppConfig resources"
+echo "intentionally preserved:"
 if ((${#preserved_resources[@]} == 0)); then
-  echo "  - No managed S3, S3 Vectors, Secrets Manager, or ECR resources are present in state."
+  echo "  - No preservable resources are present in state."
 else
   printf '  - %s\n' "${preserved_resources[@]}"
 fi
@@ -58,4 +65,5 @@ terraform -chdir="${INFRA_DIR}" plan \
 terraform -chdir="${INFRA_DIR}" apply -input=false "${plan_file}"
 
 echo
-echo "Idle-cost resources destroyed. S3, Secrets Manager, and ECR resources were preserved."
+echo "Idle-cost resources destroyed. S3, S3 Vectors, Secrets Manager, ECR, and AppConfig"
+echo "resources were preserved, so the registry keeps its identifiers and deployment history."

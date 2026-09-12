@@ -158,6 +158,26 @@ data "aws_iam_policy_document" "feedback_write" {
   }
 
   statement {
+    sid       = "ReadPublishedComponentRegistry"
+    effect    = "Allow"
+    actions   = ["s3:GetObject", "s3:GetObjectVersion"]
+    resources = ["arn:aws:s3:::${var.knowledge_bucket_name}/${trim(var.registry_prefix, "/")}/*"]
+  }
+
+  statement {
+    sid       = "ListComponentRegistryVersions"
+    effect    = "Allow"
+    actions   = ["s3:ListBucketVersions"]
+    resources = ["arn:aws:s3:::${var.knowledge_bucket_name}"]
+
+    condition {
+      test     = "StringLike"
+      variable = "s3:prefix"
+      values   = ["${trim(var.registry_prefix, "/")}/*"]
+    }
+  }
+
+  statement {
     sid       = "WriteSlackDiagrams"
     effect    = "Allow"
     actions   = ["s3:PutObject", "s3:GetObject"]

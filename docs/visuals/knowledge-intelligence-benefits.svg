@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 568" width="1760" height="568" role="img" aria-label="Business benefits. Answers within seconds, with no reading through every Confluence page to find one detail. Documentation debt becomes visible, because every refusal names something worth writing, ranked by what people ask. Engineers stay in sync with context, answered where the work already happens so the context switch never happens. And you always know what is happening across the platform: one place to ask, whichever service the answer belongs to.">
+  <circle cx="74" cy="92.0" r="34" fill="#4338CA"/>
+  <circle cx="74" cy="92.0" r="16" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+  <path d="M74 83.0 V 92.0 L 82 97.0" stroke="#ffffff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="142" y="88.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="31" font-weight="700" fill="#0F172A">Answers within seconds</text>
+  <text x="142" y="124.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19.5" font-weight="600" fill="#475569">no reading through every Confluence page to find one detail</text>
+  <path d="M142 156 H 1720" stroke="#E9EDF3" stroke-width="2"/>
+  <circle cx="74" cy="220.0" r="34" fill="#0369A1"/>
+  <circle cx="71" cy="217.0" r="13" fill="none" stroke="#ffffff" stroke-width="3.4"/>
+  <path d="M81 227.0 l9 9" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  <text x="142" y="216.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="31" font-weight="700" fill="#0F172A">Documentation debt becomes visible</text>
+  <text x="142" y="252.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19.5" font-weight="600" fill="#475569">every refusal names something worth writing, ranked by what people ask</text>
+  <path d="M142 284 H 1720" stroke="#E9EDF3" stroke-width="2"/>
+  <circle cx="74" cy="348.0" r="34" fill="#0F766E"/>
+  <path d="M61 339.0 l8 9 l-8 9" stroke="#ffffff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M73 339.0 l8 9 l-8 9" stroke="#ffffff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M85 339.0 l8 9 l-8 9" stroke="#ffffff" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="142" y="344.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="31" font-weight="700" fill="#0F172A">Engineers stay in sync with context</text>
+  <text x="142" y="380.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19.5" font-weight="600" fill="#475569">answered where the work already happens, so the context switch never happens</text>
+  <path d="M142 412 H 1720" stroke="#E9EDF3" stroke-width="2"/>
+  <circle cx="74" cy="476.0" r="34" fill="#047857"/>
+  <circle cx="74" cy="476.0" r="5" fill="#ffffff"/>
+  <circle cx="74" cy="460.0" r="4.5" fill="#ffffff"/>
+  <path d="M74 476.0 L 74 460.0" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="88" cy="485.0" r="4.5" fill="#ffffff"/>
+  <path d="M74 476.0 L 88 485.0" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+  <circle cx="60" cy="485.0" r="4.5" fill="#ffffff"/>
+  <path d="M74 476.0 L 60 485.0" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+  <text x="142" y="472.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="31" font-weight="700" fill="#0F172A">Always know what is happening across the platform</text>
+  <text x="142" y="508.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19.5" font-weight="600" fill="#475569">one place to ask, whichever service the answer belongs to</text>
+</svg>

@@ -40,7 +40,12 @@ class Settings(BaseSettings):
 
     ingest_unmapped_documents: bool = True
 
-    registry_directory: Path = Path("registry/components")
+    registry_directory: Path = Path("tenant-provided registry data")
+    registry_document_key: str = ""
+    registry_appconfig_application: str = ""
+    registry_appconfig_environment: str = "production"
+    registry_appconfig_profile: str = "components"
+    registry_cache_path: Path = Path("/tmp/registry-last-known-good.yaml")
     github_enabled: bool = False
     github_token: SecretStr = SecretStr("")
     github_api_url: str = "https://api.github.com"
@@ -70,6 +75,7 @@ class Settings(BaseSettings):
 
     # Structured per-answer timing and retrieval metrics.
     metrics_enabled: bool = True
+
 
     @model_validator(mode="after")
     def validate_optional_integrations(self) -> Settings:

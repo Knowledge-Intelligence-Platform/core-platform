@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1760 798" width="1760" height="798" role="img" aria-label="Roadmap. One, an LLM gateway: one governed route to every model. Two, response performance: faster answers in the thread. Three, more services beyond the first five. Four, service relationships: how they connect, and why that matters. Five, architecture diagrams, drawn from declared relationships.">
+  <defs><linearGradient id="spine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4338CA"/><stop offset="1" stop-color="#047857"/></linearGradient></defs>
+  <rect x="875.0" y="99.0" width="10" height="600.0" rx="5" fill="url(#spine)"/>
+  <path d="M846.0 99.0 H 788.0" stroke="#4338CA" stroke-width="4" stroke-linecap="round"/>
+  <rect x="128.0" y="41.0" width="660" height="116" rx="20" fill="#C7D2FE" stroke="#818CF8" stroke-width="2.4"/>
+  <text x="752.0" y="93.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="29" font-weight="700" fill="#1E1B4B" text-anchor="end">LLM Gateway</text>
+  <text x="752.0" y="127.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#475569" text-anchor="end">one governed route to every model</text>
+  <circle cx="880.0" cy="99.0" r="34" fill="#ffffff"/>
+  <circle cx="880.0" cy="99.0" r="27" fill="#4338CA"/>
+  <text x="880.0" y="109.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+  <path d="M914.0 249.0 H 972.0" stroke="#6D28D9" stroke-width="4" stroke-linecap="round"/>
+  <rect x="972.0" y="191.0" width="660" height="116" rx="20" fill="#DDD6FE" stroke="#A78BFA" stroke-width="2.4"/>
+  <text x="1008.0" y="243.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="29" font-weight="700" fill="#3B0764" text-anchor="start">Response performance</text>
+  <text x="1008.0" y="277.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#475569" text-anchor="start">faster answers in the thread</text>
+  <circle cx="880.0" cy="249.0" r="34" fill="#ffffff"/>
+  <circle cx="880.0" cy="249.0" r="27" fill="#6D28D9"/>
+  <text x="880.0" y="259.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+  <path d="M846.0 399.0 H 788.0" stroke="#0369A1" stroke-width="4" stroke-linecap="round"/>
+  <rect x="128.0" y="341.0" width="660" height="116" rx="20" fill="#BAE6FD" stroke="#38BDF8" stroke-width="2.4"/>
+  <text x="752.0" y="393.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="29" font-weight="700" fill="#0C4A6E" text-anchor="end">More services</text>
+  <text x="752.0" y="427.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#475569" text-anchor="end">beyond the first five</text>
+  <circle cx="880.0" cy="399.0" r="34" fill="#ffffff"/>
+  <circle cx="880.0" cy="399.0" r="27" fill="#0369A1"/>
+  <text x="880.0" y="409.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+  <path d="M914.0 549.0 H 972.0" stroke="#0F766E" stroke-width="4" stroke-linecap="round"/>
+  <rect x="972.0" y="491.0" width="660" height="116" rx="20" fill="#99F6E4" stroke="#2DD4BF" stroke-width="2.4"/>
+  <text x="1008.0" y="543.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="29" font-weight="700" fill="#134E4A" text-anchor="start">Service relationships</text>
+  <text x="1008.0" y="577.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#475569" text-anchor="start">how they connect, and why that matters</text>
+  <circle cx="880.0" cy="549.0" r="34" fill="#ffffff"/>
+  <circle cx="880.0" cy="549.0" r="27" fill="#0F766E"/>
+  <text x="880.0" y="559.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+  <path d="M846.0 699.0 H 788.0" stroke="#047857" stroke-width="4" stroke-linecap="round"/>
+  <rect x="128.0" y="641.0" width="660" height="116" rx="20" fill="#A7F3D0" stroke="#34D399" stroke-width="2.4"/>
+  <text x="752.0" y="693.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="29" font-weight="700" fill="#064E3B" text-anchor="end">Architecture diagrams</text>
+  <text x="752.0" y="727.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#475569" text-anchor="end">drawn from declared relationships</text>
+  <circle cx="880.0" cy="699.0" r="34" fill="#ffffff"/>
+  <circle cx="880.0" cy="699.0" r="27" fill="#047857"/>
+  <text x="880.0" y="709.0" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="27" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+</svg>

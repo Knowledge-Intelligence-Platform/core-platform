@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" role="img" aria-label="How the Platform Knowledge Agent uses the service registry. The registry holds one file per service, carrying its id, name and aliases, its place in the hierarchy and its relationships, notes agreed outside Confluence, the documentation prefixes it owns, and a contact. Three of these reach the agent: aliases give it the vocabulary people actually use, hierarchy and relationships become sentences it can retrieve, and documentation prefixes label every Confluence and README passage with its service. The contact takes a separate path: it is never indexed and never reaches the model, and is attached to the answer in Slack instead.">
+  <defs>
+    <marker id="i" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6366F1"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#16A34A"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#D97706"/></marker>
+    <g id="ecs">
+      <rect width="38" height="38" rx="9" fill="#ED7100"/>
+      <rect x="9" y="9" width="9" height="9" rx="2" fill="#ffffff"/>
+      <rect x="21" y="9" width="9" height="9" rx="2" fill="#ffffff"/>
+      <rect x="9" y="21" width="9" height="9" rx="2" fill="#ffffff"/>
+      <rect x="21" y="21" width="9" height="9" rx="2" fill="#ffffff"/>
+    </g>
+  </defs>
+  <rect x="60" y="310" width="440" height="460" rx="16" fill="#F0FDF4" stroke="#16A34A" stroke-width="2"/>
+  <text x="84" y="348" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#15803D">SERVICE REGISTRY</text>
+  <rect x="84" y="384" width="392" height="344" rx="12" fill="#ffffff" stroke="#4ADE80" stroke-width="1.6"/>
+  <ellipse cx="129" cy="428" rx="21" ry="8" fill="#16A34A"/>
+  <path d="M108 428 v28 a21 8 0 0 0 42 0 v-28" fill="#16A34A"/>
+  <text x="172" y="442" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#14532D">One file per service</text>
+  <circle cx="116" cy="487" r="4" fill="#16A34A"/>
+  <text x="132" y="492" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#166534">id · name · aliases</text>
+  <text x="132" y="512" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#64748B">what it is called</text>
+  <circle cx="116" cy="535" r="4" fill="#16A34A"/>
+  <text x="132" y="540" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#166534">part_of · related</text>
+  <text x="132" y="560" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#64748B">how it connects</text>
+  <circle cx="116" cy="583" r="4" fill="#16A34A"/>
+  <text x="132" y="588" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#166534">notes</text>
+  <text x="132" y="608" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#64748B">agreed outside Confluence</text>
+  <circle cx="116" cy="631" r="4" fill="#16A34A"/>
+  <text x="132" y="636" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#166534">documentation_prefixes</text>
+  <text x="132" y="656" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#64748B">which documents are its own</text>
+  <circle cx="116" cy="679" r="4" fill="#D97706"/>
+  <text x="132" y="684" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15.5" font-weight="700" fill="#B45309">contact</text>
+  <text x="132" y="704" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#64748B">who to ask</text>
+  <rect x="620" y="110" width="600" height="180" rx="14" fill="#EEF2FF" stroke="#6366F1" stroke-width="2"/>
+  <text x="656" y="188" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#3730A3">Vocabulary</text>
+  <text x="656" y="226" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#475569">aliases match the words people actually use</text>
+  <rect x="620" y="330" width="600" height="180" rx="14" fill="#EEF2FF" stroke="#6366F1" stroke-width="2"/>
+  <text x="656" y="408" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#3730A3">Structure</text>
+  <text x="656" y="446" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#475569">hierarchy and relationships become sentences</text>
+  <rect x="620" y="550" width="600" height="180" rx="14" fill="#EEF2FF" stroke="#6366F1" stroke-width="2"/>
+  <text x="656" y="628" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#3730A3">Ownership</text>
+  <text x="656" y="666" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#475569">every document carries its service</text>
+  <rect x="620" y="770" width="600" height="180" rx="14" fill="#FFFBEB" stroke="#D97706" stroke-width="2"/>
+  <text x="656" y="848" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="24" font-weight="700" fill="#B45309">Contact</text>
+  <text x="656" y="886" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15" font-weight="600" fill="#475569">attached to the answer, never indexed</text>
+  <path d="M500 540.0 C 580 540.0, 540 200.0, 606 200.0" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
+  <path d="M500 540.0 C 580 540.0, 540 420.0, 606 420.0" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
+  <path d="M500 540.0 C 580 540.0, 540 640.0, 606 640.0" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
+  <path d="M500 540.0 C 580 540.0, 540 860.0, 606 860.0" fill="none" stroke="#D97706" stroke-width="2.2" marker-end="url(#a)"/>
+  <rect x="1420" y="110" width="440" height="480" rx="16" fill="#EEF2FF" stroke="#6366F1" stroke-width="2"/>
+  <text x="1444" y="148" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#3730A3">PLATFORM KNOWLEDGE AGENT</text>
+  <use href="#ecs" x="1798" y="130"/>
+  <rect x="1444" y="200" width="392" height="160" rx="12" fill="#ffffff" stroke="#C7D2FE" stroke-width="1.6"/>
+  <text x="1472" y="270" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#3730A3">Retrieved passages</text>
+  <text x="1472" y="300" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#64748B">registry, Confluence, README</text>
+  <path d="M1640.0 360 V 386" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
+  <rect x="1444" y="390" width="392" height="160" rx="12" fill="#ffffff" stroke="#C7D2FE" stroke-width="1.6"/>
+  <text x="1472" y="460" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="19" font-weight="700" fill="#3730A3">Grounded answer</text>
+  <text x="1472" y="490" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#64748B">no invented owners</text>
+  <rect x="1420" y="650" width="440" height="300" rx="16" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1444" y="688" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#475569">SLACK</text>
+  <rect x="1444" y="730" width="392" height="170" rx="12" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.6"/>
+  <rect x="1472" y="762" width="21" height="21" rx="6" fill="#36C5F0"/>
+  <rect x="1498" y="762" width="21" height="21" rx="6" fill="#2EB67D"/>
+  <rect x="1472" y="788" width="21" height="21" rx="6" fill="#ECB22E"/>
+  <rect x="1498" y="788" width="21" height="21" rx="6" fill="#E01E5A"/>
+  <text x="1472" y="850" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="700" fill="#0F172A">Answer plus who to ask</text>
+  <text x="1472" y="878" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#64748B">the contact is added here</text>
+  <path d="M1220 200.0 C 1290 200.0, 1350 280, 1406 280" fill="none" stroke="#6366F1" stroke-width="2.2" marker-end="url(#i)"/>
+  <path d="M1220 420.0 C 1290 420.0, 1350 280, 1406 280" fill="none" stroke="#6366F1" stroke-width="2.2" marker-end="url(#i)"/>
+  <path d="M1220 640.0 C 1290 640.0, 1350 280, 1406 280" fill="none" stroke="#6366F1" stroke-width="2.2" marker-end="url(#i)"/>
+  <path d="M1220 860.0 C 1290 860.0, 1350 815, 1406 815" fill="none" stroke="#D97706" stroke-width="2.2" marker-end="url(#a)"/>
+  <path d="M1640.0 590 V 642" fill="none" stroke="#6366F1" stroke-width="2.2" marker-end="url(#i)"/>
+</svg>

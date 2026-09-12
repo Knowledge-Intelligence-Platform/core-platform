@@ -8,6 +8,7 @@ from PIL import Image
 
 from app.diagram import (
     MAXIMUM_STEPS,
+    RAIL_MAX_STEPS,
     _split_stage,
     _split_step,
     _stages,
@@ -76,7 +77,7 @@ def test_a_leading_stage_token_becomes_its_own_chip() -> None:
     assert _split_stage("M0 · Confirm scope") == ("M0", "Confirm scope")
     assert _split_stage("Step 2: Approve design") == ("STEP 2", "Approve design")
     assert _split_stage("Confirm scope") == ("", "Confirm scope")
-    assert _split_stage("EKS · Service") == ("", "EKS · Service")
+    assert _split_stage("KIP Service · Service") == ("", "KIP Service · Service")
 
 
 def test_a_long_flow_is_wrapped_into_two_columns() -> None:
@@ -84,6 +85,27 @@ def test_a_long_flow_is_wrapped_into_two_columns() -> None:
     wide = size(render_flow(tuple(f"Step {index}" for index in range(8))))
     assert wide[0] > tall[0]
     assert wide[0] > wide[1]
+
+
+def test_a_short_flow_uses_the_rail_renderer() -> None:
+    width, height = size(render_flow(tuple(f"Step {index}" for index in range(RAIL_MAX_STEPS))))
+
+    assert width == 1500
+    assert width > height
+
+
+def test_every_flow_the_rail_draws_stays_landscape() -> None:
+    for count in range(2, RAIL_MAX_STEPS + 1):
+        steps = tuple(f"Step {index} -> a grounded detail line" for index in range(count))
+        width, height = size(render_flow(steps))
+        assert width > height, f"{count} steps rendered taller than it is wide"
+
+
+def test_a_flow_beyond_the_rail_limit_is_wrapped_by_graphviz() -> None:
+    rail = size(render_flow(tuple(f"Step {index}" for index in range(RAIL_MAX_STEPS))))
+    wrapped = size(render_flow(tuple(f"Step {index}" for index in range(RAIL_MAX_STEPS + 2))))
+
+    assert wrapped[0] > rail[0]
 
 
 def test_milestone_chips_are_used_when_every_step_has_one() -> None:
@@ -106,19 +128,19 @@ BRANCHES = [
 
 
 def test_a_map_renders_as_a_png() -> None:
-    output = render_mindmap("TME", BRANCHES)
+    output = render_mindmap("KIP", BRANCHES)
     assert output is not None
     assert output.getvalue().startswith(PNG_MAGIC)
 
 
 def test_a_map_with_more_branches_is_larger() -> None:
-    small = render_mindmap("TME", BRANCHES[:2])
-    large = render_mindmap("TME", BRANCHES)
+    small = render_mindmap("KIP", BRANCHES[:2])
+    large = render_mindmap("KIP", BRANCHES)
     assert small is not None and large is not None
     assert len(large.getvalue()) > len(small.getvalue())
 
 
 def test_a_branch_without_items_still_renders() -> None:
-    output = render_mindmap("TME", [("Purpose", []), ("Coverage", [])])
+    output = render_mindmap("KIP", [("Purpose", []), ("Coverage", [])])
     assert output is not None
     assert output.getvalue().startswith(PNG_MAGIC)

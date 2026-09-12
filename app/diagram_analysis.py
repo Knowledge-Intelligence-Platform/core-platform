@@ -25,7 +25,7 @@ DIAGRAM_TERMS = (
     "overview",
 )
 INSTRUCTIONS = """
-You analyze diagrams in approved TME PDF pages.
+You analyze diagrams in approved PDF pages.
 
 Describe only relationships visibly established by the supplied page image.
 Capture the diagram title, major nodes, directional connections, boundaries,

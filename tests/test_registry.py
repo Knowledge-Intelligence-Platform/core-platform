@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.registry import ComponentRegistry
+from app.registry import ComponentRegistry, load_registry
 
-REGISTRY = Path("registry/components")
+REGISTRY = Path("tests/fixtures-registry/components")
 
 
 @pytest.fixture(scope="module")
@@ -18,9 +18,9 @@ def registry() -> ComponentRegistry:
 
 
 def test_blank_component_files_are_skipped(registry: ComponentRegistry) -> None:
-    # concourse.yaml is an empty placeholder and must not become a component.
+    # integration.yaml is an empty placeholder and must not become a component.
     assert all(component.id for component in registry.components)
-    assert "concourse" not in {component.id for component in registry.components}
+    assert "integration" not in {component.id for component in registry.components}
 
 
 def test_repository_names_are_fully_qualified(registry: ComponentRegistry) -> None:
@@ -35,9 +35,9 @@ def test_documents_describe_each_component(registry: ComponentRegistry) -> None:
 
 
 def test_confluence_prefix_maps_to_one_component(registry: ComponentRegistry) -> None:
-    component = registry.component_for_s3_key("raw/confluence/eks/page.pdf")
+    component = registry.component_for_s3_key("raw/confluence/kip-service/page.pdf")
     assert component is not None
-    assert component.id == "eks-service"
+    assert component.id == "kip-service"
 
 
 def test_unmapped_source_is_not_guessed(registry: ComponentRegistry) -> None:
@@ -111,12 +111,12 @@ def test_a_contact_is_never_indexed(tmp_path: Path) -> None:
         tmp_path,
         "hub",
         BASE.format(id="hub", name="Hub")
-        + 'contact:\n  name: Platform Engineering\n  slack: "#tme-support"\n',
+        + 'contact:\n  name: Platform Engineering\n  slack: "#kip-support"\n',
     )
     registry = ComponentRegistry(tmp_path)
 
     document = registry.as_documents()[0]
-    assert "tme-support" not in document.blocks[0].text
+    assert "kip-support" not in document.blocks[0].text
     assert "Platform Engineering" not in document.blocks[0].text
 
 
@@ -176,71 +176,60 @@ def test_a_new_component_joins_the_hierarchy_without_editing_the_hub(tmp_path: P
 
 
 def test_the_shipped_registry_has_a_single_root() -> None:
-    registry = ComponentRegistry(Path("registry/components"))
+    registry = ComponentRegistry(Path("tests/fixtures-registry/components"))
 
     roots = [c.id for c in registry.components if c.part_of is None]
-    assert roots == ["tme-platform"]
-    assert len(registry.children_of("tme-platform")) == len(registry.components) - 1
+    assert roots == ["kip-platform"]
+    assert len(registry.children_of("kip-platform")) == len(registry.components) - 1
 
 
 def test_the_shipped_registry_still_loads() -> None:
-    registry = ComponentRegistry(Path("registry/components"))
+    registry = ComponentRegistry(Path("tests/fixtures-registry/components"))
 
     assert {component.id for component in registry.components} >= {
-        "eks-service",
-        "osbuilds",
-        "patch-mgmt",
-        "tme-platform",
+        "kip-service",
+        "knowledge-source",
+        "operations",
+        "kip-platform",
     }
 
 
 def test_a_nested_component_can_be_four_levels_deep(tmp_path: Path) -> None:
-    write(tmp_path, "tme", BASE.format(id="tme", name="TME"))
-    write(tmp_path, "eks", BASE.format(id="eks", name="EKS") + "part_of: tme\n")
-    write(tmp_path, "found", BASE.format(id="found", name="Foundation") + "part_of: eks\n")
+    write(tmp_path, "kip", BASE.format(id="kip", name="KIP"))
+    write(
+        tmp_path,
+        "kip-service",
+        BASE.format(id="kip-service", name="KIP Service") + "part_of: kip\n",
+    )
+    write(tmp_path, "found", BASE.format(id="found", name="Foundation") + "part_of: kip-service\n")
     write(tmp_path, "pools", BASE.format(id="pools", name="Node Pools") + "part_of: found\n")
     registry = ComponentRegistry(tmp_path)
 
     documents = {d.component_id: d.blocks[0].text for d in registry.as_documents()}
-    assert "Foundation is part of EKS." in documents["found"]
+    assert "Foundation is part of KIP Service." in documents["found"]
     assert "Foundation includes Node Pools." in documents["found"]
 
 
 def test_a_nested_component_claims_documents_inside_its_parents_prefix(tmp_path: Path) -> None:
-    write(tmp_path, "tme", BASE.format(id="tme", name="TME"))
+    write(tmp_path, "kip", BASE.format(id="kip", name="KIP"))
     write(
         tmp_path,
-        "eks",
-        BASE.format(id="eks", name="EKS")
-        + "part_of: tme\ndocumentation_prefixes:\n  - raw/confluence/eks\n",
+        "kip-service",
+        BASE.format(id="kip-service", name="KIP Service")
+        + "part_of: kip\ndocumentation_prefixes:\n  - raw/confluence/kip-service\n",
     )
     write(
         tmp_path,
         "oidc",
-        BASE.format(id="oidc", name="EKS OIDC")
-        + "part_of: eks\ndocumentation_prefixes:\n  - raw/confluence/eks/oidc\n",
+        BASE.format(id="oidc", name="KIP Service OIDC")
+        + "part_of: kip-service\ndocumentation_prefixes:\n  - raw/confluence/kip-service/oidc\n",
     )
     registry = ComponentRegistry(tmp_path)
 
-    nested = registry.component_for_s3_key("raw/confluence/eks/oidc/doc.pdf")
-    parent = registry.component_for_s3_key("raw/confluence/eks/other.pdf")
+    nested = registry.component_for_s3_key("raw/confluence/kip-service/oidc/doc.pdf")
+    parent = registry.component_for_s3_key("raw/confluence/kip-service/other.pdf")
     assert nested is not None and nested.id == "oidc"
-    assert parent is not None and parent.id == "eks"
-
-
-def test_two_components_claiming_the_same_prefix_is_still_an_error(tmp_path: Path) -> None:
-    write(tmp_path, "tme", BASE.format(id="tme", name="TME"))
-    for name in ("one", "two"):
-        write(
-            tmp_path,
-            name,
-            BASE.format(id=name, name=name.title())
-            + "part_of: tme\ndocumentation_prefixes:\n  - raw/confluence/shared\n",
-        )
-    registry = ComponentRegistry(tmp_path)
-
-    with pytest.raises(ValueError, match="Multiple components map"):
-        registry.component_for_s3_key("raw/confluence/shared/doc.pdf")
+    assert parent is not None and parent.id == "kip-service"
 
 
 NOTE = """notes:
@@ -306,9 +295,222 @@ def test_a_component_may_carry_several_notes(tmp_path: Path) -> None:
 
 
 def test_the_shipped_windows_note_is_recorded() -> None:
-    registry = ComponentRegistry(Path("registry/components"))
-    osbuilds = registry.component_by_id("osbuilds")
+    registry = ComponentRegistry(Path("tests/fixtures-registry/components"))
+    knowledge_source = registry.component_by_id("knowledge-source")
 
-    assert osbuilds is not None
-    assert any("Windows" in note.note for note in osbuilds.notes)
-    assert all(note.recorded for note in osbuilds.notes)
+    assert knowledge_source is not None
+    assert any("Windows" in note.note for note in knowledge_source.notes)
+    assert all(note.recorded for note in knowledge_source.notes)
+
+
+def shipped() -> ComponentRegistry:
+    return ComponentRegistry(Path("tests/fixtures-registry/components"))
+
+
+def test_a_directory_round_trips_through_a_document() -> None:
+    registry = shipped()
+    rebuilt = ComponentRegistry.from_document(registry.as_document())
+
+    assert [c.id for c in rebuilt.components] == [c.id for c in registry.components]
+    assert rebuilt.component_by_id("knowledge-source").notes == registry.component_by_id(
+        "knowledge-source"
+    ).notes  # type: ignore[union-attr]
+    assert [d.blocks[0].text for d in rebuilt.as_documents()] == [
+        d.blocks[0].text for d in registry.as_documents()
+    ]
+
+
+def test_a_document_is_validated_like_a_directory() -> None:
+    document = """
+components:
+  - id: hub
+    name: Hub
+    description: A component.
+  - id: leaf
+    name: Leaf
+    description: A component.
+    part_of: missing
+"""
+    with pytest.raises(ValueError, match="part of an unknown component"):
+        ComponentRegistry.from_document(document)
+
+
+def test_a_document_cannot_smuggle_a_second_root() -> None:
+    document = """
+components:
+  - id: one
+    name: One
+    description: A component.
+  - id: two
+    name: Two
+    description: A component.
+"""
+    with pytest.raises(ValueError, match="Exactly one component must be the root"):
+        ComponentRegistry.from_document(document)
+
+
+def test_an_empty_document_is_rejected() -> None:
+    with pytest.raises(ValueError, match="contains no components"):
+        ComponentRegistry.from_document("components: []")
+
+    with pytest.raises(ValueError, match="contains no components"):
+        ComponentRegistry.from_document("{}")
+
+
+def test_a_document_that_is_not_a_mapping_is_rejected() -> None:
+    with pytest.raises(ValueError, match="must be a mapping"):
+        ComponentRegistry.from_document("- just\n- a\n- list\n")
+
+
+def test_components_can_be_supplied_directly() -> None:
+    registry = ComponentRegistry.from_components(shipped().components)
+
+    assert len(registry.components) == 5
+    assert registry.component_by_id("kip-platform") is not None
+
+
+def test_two_components_claiming_one_prefix_fail_at_load(tmp_path: Path) -> None:
+    write(tmp_path, "hub", BASE.format(id="hub", name="Hub"))
+    for name in ("one", "two"):
+        write(
+            tmp_path,
+            name,
+            BASE.format(id=name, name=name.title())
+            + "part_of: hub\ndocumentation_prefixes:\n  - raw/confluence/shared\n",
+        )
+
+    with pytest.raises(ValueError, match="both claim the prefix"):
+        ComponentRegistry(tmp_path)
+
+
+def test_a_nested_prefix_is_still_allowed(tmp_path: Path) -> None:
+    write(tmp_path, "hub", BASE.format(id="hub", name="Hub"))
+    write(
+        tmp_path,
+        "parent",
+        BASE.format(id="parent", name="Parent")
+        + "part_of: hub\ndocumentation_prefixes:\n  - raw/confluence/kip-service\n",
+    )
+    write(
+        tmp_path,
+        "child",
+        BASE.format(id="child", name="Child")
+        + "part_of: parent\ndocumentation_prefixes:\n  - raw/confluence/kip-service/oidc\n",
+    )
+
+    registry = ComponentRegistry(tmp_path)
+    match = registry.component_for_s3_key("raw/confluence/kip-service/oidc/doc.pdf")
+    assert match is not None and match.id == "child"
+
+
+def document_of(directory: Path) -> str:
+    return ComponentRegistry(directory).as_document()
+
+
+def test_without_a_document_key_the_directory_is_used() -> None:
+    registry = load_registry(directory=Path("tests/fixtures-registry/components"))
+
+    assert len(registry.components) == 5
+
+
+def test_a_published_document_wins_and_is_cached(tmp_path: Path) -> None:
+    cache = tmp_path / "cache.yaml"
+    published = document_of(Path("tests/fixtures-registry/components"))
+
+    registry = load_registry(
+        directory=Path("tests/fixtures-registry/components"),
+        document_key="registry/registry.yaml",
+        cache_path=cache,
+        sources=(("published", lambda key: published),),
+    )
+
+    assert len(registry.components) == 5
+    assert cache.read_text(encoding="utf-8") == published
+
+
+def test_a_fetch_failure_serves_the_last_known_good(tmp_path: Path) -> None:
+    cache = tmp_path / "cache.yaml"
+    cache.write_text(document_of(Path("tests/fixtures-registry/components")), encoding="utf-8")
+
+    def explode(key: str) -> str:
+        raise RuntimeError("S3 is unavailable")
+
+    registry = load_registry(
+        directory=Path("tests/fixtures-registry/components"),
+        document_key="registry/registry.yaml",
+        cache_path=cache,
+        sources=(("published", explode),),
+    )
+
+    assert len(registry.components) == 5
+
+
+def test_an_invalid_published_document_never_stops_startup(tmp_path: Path) -> None:
+    cache = tmp_path / "cache.yaml"
+    cache.write_text(document_of(Path("tests/fixtures-registry/components")), encoding="utf-8")
+
+    registry = load_registry(
+        directory=Path("tests/fixtures-registry/components"),
+        document_key="registry/registry.yaml",
+        cache_path=cache,
+        sources=(("published", lambda key: "components:\n  - id: BROKEN ID\n"),),
+    )
+
+    assert len(registry.components) == 5
+    assert cache.read_text(encoding="utf-8").startswith("components:")
+
+
+def test_without_a_cache_it_refuses_to_start(tmp_path: Path) -> None:
+    """A tenant must never come up serving whatever was bundled in the image."""
+    def explode(key: str) -> str:
+        raise RuntimeError("S3 is unavailable")
+
+    with pytest.raises(RuntimeError, match="No component registry"):
+        load_registry(
+            directory=Path("tests/fixtures-registry/components"),
+            document_key="registry/registry.yaml",
+            cache_path=tmp_path / "missing.yaml",
+            sources=(("published", explode),),
+        )
+
+
+def test_a_failing_source_falls_through_to_the_next(tmp_path: Path) -> None:
+    published = document_of(Path("tests/fixtures-registry/components"))
+    tried: list[str] = []
+
+    def explode(key: str) -> str:
+        tried.append("appconfig")
+        raise RuntimeError("AppConfig is unavailable")
+
+    def from_s3(key: str) -> str:
+        tried.append("s3")
+        return published
+
+    registry = load_registry(
+        directory=Path("tests/fixtures-registry/components"),
+        document_key="registry/registry.yaml",
+        cache_path=tmp_path / "cache.yaml",
+        sources=(("appconfig", explode), ("s3", from_s3)),
+    )
+
+    assert len(registry.components) == 5
+    assert tried == ["appconfig", "s3"]
+
+
+def test_a_reader_that_ignores_the_key_still_publishes(tmp_path: Path) -> None:
+    published = document_of(Path("tests/fixtures-registry/components"))
+    seen: list[str] = []
+
+    def appconfig_style(key: str) -> str:
+        seen.append(key)
+        return published
+
+    registry = load_registry(
+        directory=Path("tests/fixtures-registry/components"),
+        cache_path=tmp_path / "cache.yaml",
+        sources=(("appconfig", appconfig_style),),
+    )
+
+    assert len(registry.components) == 5
+    assert seen == [""]
+    assert (tmp_path / "cache.yaml").is_file()

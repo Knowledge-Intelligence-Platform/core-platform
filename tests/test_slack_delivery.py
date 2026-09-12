@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 from botocore.exceptions import ClientError
+from slack_sdk.errors import SlackApiError
 
 from app.models import KnowledgeAnswer, MindMap, MindMapBranch
 from app.slack import (
@@ -18,6 +19,7 @@ from app.slack import (
     _flow_nodes,
 )
 
+PLATFORM = "Example Platform"
 FLOW = "Request a cluster\n↓\nAwait approval\n↓\nDeploy the workload"
 
 
@@ -35,11 +37,11 @@ def test_source_markers_never_reach_a_diagram_node() -> None:
         ("onboarding", "Your onboarding journey"),
         ("comparison", "Service comparison"),
         ("mapping", "Connected knowledge map"),
-        ("general", "TME high-level view"),
+        ("general", f"{PLATFORM} high-level view"),
     ],
 )
 def test_the_diagram_is_titled_for_the_answer(response_type: str, expected: str) -> None:
-    assert _diagram_title(response_type) == expected
+    assert _diagram_title(response_type, PLATFORM) == expected
 
 
 DIAGRAM_URL = "https://bucket.s3.ap-south-1.amazonaws.com/diagrams/slack/x.png?sig=abc"
@@ -47,7 +49,9 @@ DIAGRAM_URL = "https://bucket.s3.ap-south-1.amazonaws.com/diagrams/slack/x.png?s
 
 def test_a_published_diagram_is_embedded_in_the_message() -> None:
     result = KnowledgeAnswer(answer="Here is the flow.", visual=FLOW, response_type="mapping")
-    blocks = SlackIntegration._blocks(result, result.answer, DIAGRAM_URL, "Connected knowledge map")
+    blocks = SlackIntegration._blocks(
+        result, result.answer, PLATFORM, DIAGRAM_URL, "Connected knowledge map"
+    )
 
     images = [block for block in blocks if block.get("type") == "image"]
     assert len(images) == 1
@@ -58,7 +62,9 @@ def test_a_published_diagram_is_embedded_in_the_message() -> None:
 
 def test_a_failed_publish_falls_back_to_text_cards() -> None:
     result = KnowledgeAnswer(answer="Here is the flow.", visual=FLOW, response_type="mapping")
-    blocks = SlackIntegration._blocks(result, result.answer, None, "Connected knowledge map")
+    blocks = SlackIntegration._blocks(
+        result, result.answer, PLATFORM, None, "Connected knowledge map"
+    )
 
     assert not any(block.get("type") == "image" for block in blocks)
     rendered = json.dumps(blocks, ensure_ascii=False)
@@ -68,7 +74,7 @@ def test_a_failed_publish_falls_back_to_text_cards() -> None:
 
 def test_an_answer_without_a_flow_has_neither() -> None:
     result = KnowledgeAnswer(answer="Just an answer.")
-    blocks = SlackIntegration._blocks(result, result.answer)
+    blocks = SlackIntegration._blocks(result, result.answer, PLATFORM)
 
     assert not any(block.get("type") == "image" for block in blocks)
     assert "Request a cluster" not in json.dumps(blocks)
@@ -82,7 +88,8 @@ def test_follow_ups_and_feedback_survive_a_diagram() -> None:
         response_type="mapping",
     )
     rendered = json.dumps(
-        SlackIntegration._blocks(result, result.answer, DIAGRAM_URL), ensure_ascii=False
+        SlackIntegration._blocks(result, result.answer, PLATFORM, DIAGRAM_URL),
+        ensure_ascii=False,
     )
     assert "What happens after approval?" in rendered
     assert "Was this answer helpful?" in rendered
@@ -186,7 +193,7 @@ def test_without_a_public_url_no_image_is_offered() -> None:
 
 
 MINDMAP = MindMap(
-    center="TME",
+    center="KIP",
     branches=(
         MindMapBranch(label="Purpose", items=("Compliance",)),
         MindMapBranch(label="Coverage", items=("UK",)),
@@ -195,8 +202,10 @@ MINDMAP = MindMap(
 
 
 def test_a_map_is_embedded_like_any_other_diagram() -> None:
-    result = KnowledgeAnswer(answer="TME covers several areas.", mindmap=MINDMAP)
-    blocks = SlackIntegration._blocks(result, result.answer, DIAGRAM_URL, "Knowledge map")
+    result = KnowledgeAnswer(answer="KIP covers several areas.", mindmap=MINDMAP)
+    blocks = SlackIntegration._blocks(
+        result, result.answer, PLATFORM, DIAGRAM_URL, "Knowledge map"
+    )
 
     images = [block for block in blocks if block.get("type") == "image"]
     assert len(images) == 1
@@ -205,8 +214,57 @@ def test_a_map_is_embedded_like_any_other_diagram() -> None:
 
 
 def test_a_map_that_could_not_be_rendered_adds_no_flow_cards() -> None:
-    result = KnowledgeAnswer(answer="TME covers several areas.", mindmap=MINDMAP)
-    blocks = SlackIntegration._blocks(result, result.answer, None, "Knowledge map")
+    result = KnowledgeAnswer(answer="KIP covers several areas.", mindmap=MINDMAP)
+    blocks = SlackIntegration._blocks(
+        result, result.answer, PLATFORM, None, "Knowledge map"
+    )
 
     assert not any(block.get("type") == "image" for block in blocks)
     assert "Purpose" not in json.dumps(blocks)
+
+
+class RejectingSlackClient:
+    """Rejects any message carrying an image block, the way Slack does."""
+
+    def __init__(self) -> None:
+        self.attempts: list[tuple[dict[str, Any], ...]] = []
+
+    def chat_postMessage(self, **kwargs: Any) -> dict[str, str]:
+        blocks = tuple(kwargs.get("blocks") or ())
+        self.attempts.append(blocks)
+        if any(block.get("type") == "image" for block in blocks):
+            raise SlackApiError(
+                "invalid_blocks", {"ok": False, "error": "invalid_blocks"}
+            )
+        return {"ts": "1700000000.000100"}
+
+
+def _integration_with(client: RejectingSlackClient) -> SlackIntegration:
+    integration = SlackIntegration.__new__(SlackIntegration)
+    integration.client = client  # type: ignore[assignment]
+    integration.maximum_message_length = 4000
+    return integration
+
+
+def test_posting_a_rejected_image_block_still_delivers_the_answer() -> None:
+    client = RejectingSlackClient()
+    blocks: tuple[dict[str, Any], ...] = (
+        {"type": "section", "block_id": "answer"},
+        {"type": "image", "image_url": DIAGRAM_URL, "alt_text": "flow"},
+    )
+
+
+    timestamp = _integration_with(client)._post("C1", "1.0", "The answer.", blocks)
+
+    assert timestamp == "1700000000.000100"
+    assert len(client.attempts) == 2
+    assert all(block.get("type") != "image" for block in client.attempts[1])
+
+
+def test_posting_a_message_without_blocks_is_attempted_once() -> None:
+    client = RejectingSlackClient()
+
+    timestamp = _integration_with(client)._post("C1", "1.0", "The answer.", ())
+
+    assert timestamp == "1700000000.000100"
+    assert len(client.attempts) == 1

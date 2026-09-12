@@ -49,7 +49,7 @@ def test_refusal_cannot_carry_a_diagram_or_buttons() -> None:
         answer=INSUFFICIENT_ANSWER,
         response_type="onboarding",
         visual_nodes=("Request", "Approve", "Deploy"),
-        suggested_questions=("How do I start?", "What is EKS?"),
+        suggested_questions=("How do I start?", "What is KIP Service?"),
     )
     result = normalise(drifted)
     assert result.answer == INSUFFICIENT_ANSWER
@@ -78,9 +78,13 @@ def test_follow_up_already_in_the_answer_is_dropped() -> None:
 def test_duplicate_follow_ups_collapse() -> None:
     response = IntelligentResponse(
         answer="Onboarding overview.",
-        suggested_questions=("What is EKS?", "What is EKS?", "Where is the runbook?"),
+        suggested_questions=(
+            "What is KIP Service?", "What is KIP Service?", "Where is the runbook?"
+        ),
     )
-    assert normalise(response).suggested_questions == ("What is EKS?", "Where is the runbook?")
+    assert normalise(response).suggested_questions == (
+        "What is KIP Service?", "Where is the runbook?"
+    )
 
 
 def test_a_single_node_is_not_a_flow() -> None:
@@ -128,7 +132,7 @@ def test_public_answer_removes_internal_markers() -> None:
         "Based on the provided information,",
         "From the available information:",
         "From the information available -",
-        "Using the approved TME knowledge available in the conversation,",
+        "Using the approved KIP knowledge available in the conversation,",
     ],
 )
 def test_public_answer_removes_backend_preamble(preamble: str) -> None:
@@ -140,10 +144,11 @@ def test_public_answer_keeps_ordinary_text() -> None:
 
 
 def test_instructions_use_the_refusal_constant() -> None:
-    from app.agent import INSTRUCTIONS
+    from app.agent import instructions
 
-    assert INSUFFICIENT_ANSWER in INSTRUCTIONS
-    assert "{" not in INSTRUCTIONS and "}" not in INSTRUCTIONS
+    rendered = instructions("Example Platform")
+    assert INSUFFICIENT_ANSWER in rendered
+    assert "{" not in rendered and "}" not in rendered
 
 
 def test_instructions_ship_beside_the_package() -> None:
@@ -166,10 +171,20 @@ def test_a_literal_brace_in_the_instructions_is_harmless(tmp_path: Path) -> None
 
 
 def test_every_structured_field_is_named_in_the_instructions() -> None:
-    from app.agent import INSTRUCTIONS, IntelligentResponse
+    from app.agent import IntelligentResponse, instructions
 
+    rendered = instructions("Example Platform")
     for field in IntelligentResponse.model_fields:
-        assert field in INSTRUCTIONS, field
+        assert field in rendered, field
+
+
+def test_the_prompt_names_no_platform_of_its_own() -> None:
+    """A second tenant needs a registry, not a fork of the prompt."""
+    from app.agent import INSTRUCTIONS_PATH, instructions
+
+    source = INSTRUCTIONS_PATH.read_text(encoding="utf-8")
+    assert "{PLATFORM_NAME}" in source
+    assert "Tenant Zero" in instructions("Tenant Zero")
 
 
 def branch(label: str, *items: str) -> IntelligentBranch:
@@ -178,13 +193,13 @@ def branch(label: str, *items: str) -> IntelligentBranch:
 
 def test_a_map_needs_a_subject_and_two_branches() -> None:
     response = IntelligentResponse(
-        answer="TME covers several areas.",
-        visual_center="TME",
+        answer="KIP covers several areas.",
+        visual_center="KIP",
         visual_branches=(branch("Purpose", "Compliance"), branch("Coverage", "UK")),
     )
     result = normalise(response)
     assert result.mindmap is not None
-    assert result.mindmap.center == "TME"
+    assert result.mindmap.center == "KIP"
     assert [item.label for item in result.mindmap.branches] == ["Purpose", "Coverage"]
 
 
@@ -199,7 +214,7 @@ def test_a_map_without_a_subject_is_dropped() -> None:
 
 def test_a_single_branch_is_not_a_map() -> None:
     response = IntelligentResponse(
-        answer="x", visual_center="TME", visual_branches=(branch("Purpose", "a"),)
+        answer="x", visual_center="KIP", visual_branches=(branch("Purpose", "a"),)
     )
     assert normalise(response).mindmap is None
 
@@ -208,7 +223,7 @@ def test_a_sequence_wins_over_a_map() -> None:
     response = IntelligentResponse(
         answer="x",
         visual_nodes=("Request", "Approve"),
-        visual_center="TME",
+        visual_center="KIP",
         visual_branches=(branch("Purpose", "a"), branch("Coverage", "b")),
     )
     result = normalise(response)
@@ -219,7 +234,7 @@ def test_a_sequence_wins_over_a_map() -> None:
 def test_a_refusal_cannot_carry_a_map() -> None:
     response = IntelligentResponse(
         answer=INSUFFICIENT_ANSWER,
-        visual_center="TME",
+        visual_center="KIP",
         visual_branches=(branch("Purpose", "a"), branch("Coverage", "b")),
     )
     assert normalise(response).mindmap is None
@@ -228,12 +243,12 @@ def test_a_refusal_cannot_carry_a_map() -> None:
 def test_source_markers_never_reach_a_map() -> None:
     response = IntelligentResponse(
         answer="x",
-        visual_center="TME [S1]",
+        visual_center="KIP [S1]",
         visual_branches=(branch("Purpose [S2]", "Compliance [S3]"), branch("Coverage", "UK")),
     )
     mindmap = normalise(response).mindmap
     assert mindmap is not None
-    assert mindmap.center == "TME"
+    assert mindmap.center == "KIP"
     assert mindmap.branches[0].label == "Purpose"
     assert mindmap.branches[0].items == ("Compliance",)
 
@@ -241,7 +256,7 @@ def test_source_markers_never_reach_a_map() -> None:
 def test_repeated_branches_and_items_collapse() -> None:
     response = IntelligentResponse(
         answer="x",
-        visual_center="TME",
+        visual_center="KIP",
         visual_branches=(
             branch("Purpose", "Compliance", "Compliance", "  "),
             branch("purpose", "ignored"),
@@ -257,7 +272,7 @@ def test_repeated_branches_and_items_collapse() -> None:
 def test_an_item_repeating_its_branch_is_dropped() -> None:
     response = IntelligentResponse(
         answer="x",
-        visual_center="TME",
+        visual_center="KIP",
         visual_branches=(branch("Purpose", "purpose", "Compliance"), branch("Coverage", "UK")),
     )
     mindmap = normalise(response).mindmap

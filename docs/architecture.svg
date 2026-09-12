@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" role="img" aria-label="Knowledge Intelligence Platform architecture. Confluence PDF exports, GitHub README files and the component registry are parsed, chunked, embedded and indexed. Vectors go to an S3 Vectors index and the parsed text to a separate S3 chunk store. A question from Slack or the REST API runs hybrid retrieval, semantic and keyword, taking twenty-five candidates from each side and fusing them to five passages. The Platform Knowledge Agent answers only from those passages, and refuses when they do not cover the question.">
+  <defs>
+    <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+    <marker id="i" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#6366F1"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#16A34A"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#D97706"/></marker>
+    <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0E7490"/></marker>
+    <g id="s3">
+      <path d="M2 6 h32 l-4 30 a12 5 0 0 1 -24 0 z" fill="#3F8624"/>
+      <ellipse cx="18" cy="6" rx="16" ry="5" fill="#5FA83C"/>
+      <path d="M18 14 v18 M12 20 l6 4 6 -4" stroke="#ffffff" stroke-width="2.4" fill="none"/>
+    </g>
+    <g id="ecs">
+      <rect width="38" height="38" rx="9" fill="#ED7100"/>
+      <rect x="9" y="9" width="9" height="9" rx="2" fill="#ffffff"/>
+      <rect x="21" y="9" width="9" height="9" rx="2" fill="#ffffff"/>
+      <rect x="9" y="21" width="9" height="9" rx="2" fill="#ffffff"/>
+      <rect x="21" y="21" width="9" height="9" rx="2" fill="#ffffff"/>
+    </g>
+    <g id="apigw">
+      <rect width="38" height="38" rx="9" fill="#8C4FFF"/>
+      <path d="M15 12 l-6 7 6 7 M23 12 l6 7 -6 7" stroke="#ffffff" stroke-width="2.6" fill="none"/>
+    </g>
+  </defs>
+  <rect x="0" y="0" width="1920" height="1080" fill="#ffffff"/>
+  <rect x="60" y="70" width="440" height="440" rx="16" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="84" y="108" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#475569">APPROVED SOURCES</text>
+  <rect x="84" y="136" width="392" height="108" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.5"/>
+  <rect x="106" y="166" width="34" height="46" rx="5" fill="#2563EB"/>
+  <path d="M114 180 h18 M114 191 h18 M114 202 h12" stroke="#ffffff" stroke-width="2.4"/>
+  <text x="158" y="186" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Confluence PDFs</text>
+  <text x="158" y="212" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">manual export</text>
+  <rect x="84" y="262" width="392" height="108" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.5"/>
+  <circle cx="123" cy="300" r="9" fill="#2563EB"/>
+  <circle cx="123" cy="332" r="9" fill="#2563EB"/>
+  <path d="M123 309 v14" stroke="#2563EB" stroke-width="3"/>
+  <text x="158" y="312" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">GitHub README</text>
+  <text x="158" y="338" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">mapped repos only</text>
+  <rect x="84" y="388" width="392" height="108" rx="10" fill="#ffffff" stroke="#16A34A" stroke-width="1.8"/>
+  <ellipse cx="123" cy="426" rx="17" ry="6.5" fill="#16A34A"/>
+  <path d="M106 426 v22 a17 6.5 0 0 0 34 0 v-22" fill="#16A34A"/>
+  <text x="158" y="438" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Component Registry</text>
+  <text x="158" y="464" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">its own repository</text>
+  <path d="M500 290.0 H 746" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#s)"/>
+  <rect x="760" y="70" width="460" height="440" rx="16" fill="#ffffff" stroke="#6366F1" stroke-width="2" stroke-dasharray="8 5"/>
+  <text x="784" y="108" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#3730A3">INGESTION &amp; INDEXING</text>
+  <rect x="800.0" y="136" width="380" height="76" rx="10" fill="#6366F1" stroke="#6366F1" stroke-width="1.6"/>
+  <text x="824.0" y="170" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Parse</text>
+  <text x="824.0" y="196" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E0E7FF">text + diagram descriptions</text>
+  <path d="M990.0 212 V 232" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
+  <rect x="800.0" y="234" width="380" height="76" rx="10" fill="#6366F1" stroke="#6366F1" stroke-width="1.6"/>
+  <text x="824.0" y="268" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Chunk</text>
+  <text x="824.0" y="294" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E0E7FF">2000 chars · 250 overlap</text>
+  <path d="M990.0 310 V 330" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
+  <rect x="800.0" y="332" width="380" height="76" rx="10" fill="#6366F1" stroke="#6366F1" stroke-width="1.6"/>
+  <text x="824.0" y="366" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Embed</text>
+  <text x="824.0" y="392" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="600" fill="#E0E7FF">1536 dimensions</text>
+  <path d="M990.0 408 V 428" fill="none" stroke="#6366F1" stroke-width="2" marker-end="url(#i)"/>
+  <rect x="800.0" y="430" width="380" height="58" rx="10" fill="#4338CA" stroke="#4338CA" stroke-width="1.6"/>
+  <text x="824.0" y="464" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Index</text>
+  <rect x="1480" y="70" width="380" height="440" rx="16" fill="#F0FDF4" stroke="#16A34A" stroke-width="2"/>
+  <text x="1504" y="108" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#15803D">AMAZON S3</text>
+  <rect x="1504" y="150" width="332" height="136" rx="12" fill="#DCFCE7" stroke="#4ADE80" stroke-width="1.6"/>
+  <use href="#s3" x="1528" y="176"/>
+  <text x="1528" y="246" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#14532D">Vector index</text>
+  <text x="1528" y="270" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#166534">semantic recall</text>
+  <rect x="1504" y="316" width="332" height="136" rx="12" fill="#DCFCE7" stroke="#4ADE80" stroke-width="1.6"/>
+  <use href="#s3" x="1528" y="342"/>
+  <text x="1528" y="412" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#14532D">Chunk store</text>
+  <text x="1528" y="436" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#166534">parsed text</text>
+  <path d="M1220 220 H 1466" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
+  <rect x="1315.9" y="190.5" width="68.3" height="23.0" rx="11.5" fill="#DCFCE7"/>
+  <text x="1350.0" y="206" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#15803D" text-anchor="middle">vectors</text>
+  <path d="M1220 370 H 1466" fill="none" stroke="#16A34A" stroke-width="2.2" marker-end="url(#g)"/>
+  <rect x="1304.3" y="384.5" width="91.4" height="23.0" rx="11.5" fill="#DCFCE7"/>
+  <text x="1350.0" y="400" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#15803D" text-anchor="middle">parsed text</text>
+  <rect x="1480" y="590" width="380" height="400" rx="16" fill="#ECFEFF" stroke="#0E7490" stroke-width="2"/>
+  <text x="1504" y="628" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#155E75">HYBRID SEARCH</text>
+  <rect x="1504" y="656" width="332" height="110" rx="12" fill="#ffffff" stroke="#67E8F9" stroke-width="1.6"/>
+  <text x="1528" y="700" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16.5" font-weight="700" fill="#0F172A">Semantic</text>
+  <text x="1528" y="728" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">by meaning</text>
+  <rect x="1504" y="796" width="332" height="110" rx="12" fill="#ffffff" stroke="#67E8F9" stroke-width="1.6"/>
+  <text x="1528" y="840" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="16.5" font-weight="700" fill="#0F172A">Keyword</text>
+  <text x="1528" y="868" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">TF-IDF</text>
+  <text x="1504" y="950" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#155E75">25 each side, fused to 5</text>
+  <path d="M1670.0 510 V 582" fill="none" stroke="#0E7490" stroke-width="2.2" marker-end="url(#c)"/>
+  <rect x="820.0" y="712" width="340" height="156" rx="16" fill="#EEF2FF" stroke="#6366F1" stroke-width="2"/>
+  <text x="844.0" y="750" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#3730A3">PLATFORM KNOWLEDGE AGENT</text>
+  <use href="#ecs" x="1098.0" y="806"/>
+  <text x="844.0" y="788" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#4338CA">Strands · OpenAI · ECS Fargate</text>
+  <path d="M1480 774 H 1176.0" fill="none" stroke="#0E7490" stroke-width="2.2" marker-end="url(#c)"/>
+  <rect x="1273.9" y="744.5" width="92.1" height="23.0" rx="11.5" fill="#CFFAFE"/>
+  <text x="1320.0" y="760" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#155E75" text-anchor="middle">5 passages</text>
+  <rect x="60" y="590" width="440" height="400" rx="16" fill="#F8FAFC" stroke="#94A3B8" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="84" y="628" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14.5" font-weight="700" fill="#475569">DELIVERY</text>
+  <rect x="84" y="656" width="392" height="130" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.6"/>
+  <rect x="108" y="696" width="19" height="19" rx="5" fill="#36C5F0"/>
+  <rect x="132" y="696" width="19" height="19" rx="5" fill="#2EB67D"/>
+  <rect x="108" y="720" width="19" height="19" rx="5" fill="#ECB22E"/>
+  <rect x="132" y="720" width="19" height="19" rx="5" fill="#E01E5A"/>
+  <text x="180" y="708" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">Enterprise Slack</text>
+  <text x="180" y="734" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">mention, thread or /ask-tme</text>
+  <rect x="84" y="816" width="392" height="130" rx="10" fill="#ffffff" stroke="#CBD5E1" stroke-width="1.6"/>
+  <use href="#apigw" x="108" y="856"/>
+  <text x="180" y="868" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#0F172A">REST API</text>
+  <text x="180" y="894" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#64748B">answer text only</text>
+  <path d="M820.0 774 H 516" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#s)"/>
+  <rect x="626.6" y="744.5" width="66.8" height="23.0" rx="11.5" fill="#E2E8F0"/>
+  <text x="660.0" y="760" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">answer</text>
+  <path d="M516 832 H 820.0" fill="none" stroke="#334155" stroke-width="2.2" marker-end="url(#s)"/>
+  <rect x="621.9" y="842.5" width="76.2" height="23.0" rx="11.5" fill="#E2E8F0"/>
+  <text x="660.0" y="858" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">question</text>
+</svg>

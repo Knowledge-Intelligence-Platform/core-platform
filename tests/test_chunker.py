@@ -11,8 +11,8 @@ def build(content: str) -> object:
         content,
         document_id="d1",
         title="README",
-        source_location="https://github.com/sky-uk/repo",
-        component_id="eks-service",
+        source_location="https://github.com/example-org/repo",
+        component_id="kip-service",
     )
 
 
@@ -40,5 +40,5 @@ def test_heading_path_is_preserved() -> None:
 
 def test_component_and_source_propagate_to_every_chunk() -> None:
     chunks = chunk_document(build("# T\n\nbody text here"))  # type: ignore[arg-type]
-    assert all(chunk.component_id == "eks-service" for chunk in chunks)
+    assert all(chunk.component_id == "kip-service" for chunk in chunks)
     assert all(chunk.source_location.startswith("https://github.com/") for chunk in chunks)

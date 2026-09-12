@@ -24,11 +24,11 @@ def make_chunk(chunk_id: str = "c1", text: str = "Raise a cluster request.") -> 
     return Chunk(
         chunk_id=chunk_id,
         document_id="d1",
-        title="EKS onboarding",
+        title="KIP Service onboarding",
         text=text,
         source_type=SourceType.CONFLUENCE,
         source_location="s3://bucket/key.pdf",
-        component_id="eks-service",
+        component_id="kip-service",
     )
 
 

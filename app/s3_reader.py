@@ -34,6 +34,46 @@ class S3Reader:
             raise RuntimeError("Unable to list approved Confluence PDFs.") from exc
         return tuple(sorted(keys))
 
+    def read_text(self, key: str) -> str:
+        """Read a small UTF-8 object, used for the published component registry."""
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=key)
+            body = response["Body"]
+            try:
+                return str(body.read().decode("utf-8"))
+            finally:
+                body.close()
+        except (BotoCoreError, ClientError, UnicodeDecodeError) as exc:
+            raise RuntimeError(f"Unable to read s3://{self.bucket}/{key}") from exc
+
+    def read_previous_text(self, key: str) -> str:
+        """The version before the current one, a tenant-safe registry fallback."""
+        try:
+            listing = self.client.list_object_versions(
+                Bucket=self.bucket, Prefix=key, MaxKeys=10
+            )
+            superseded = [
+                str(version["VersionId"])
+                for version in listing.get("Versions", ())
+                if str(version["Key"]) == key and not version.get("IsLatest", False)
+            ]
+            if not superseded:
+                raise RuntimeError(
+                    f"No superseded version of s3://{self.bucket}/{key}"
+                )
+            response = self.client.get_object(
+                Bucket=self.bucket, Key=key, VersionId=superseded[0]
+            )
+            body = response["Body"]
+            try:
+                return str(body.read().decode("utf-8"))
+            finally:
+                body.close()
+        except (BotoCoreError, ClientError, UnicodeDecodeError) as exc:
+            raise RuntimeError(
+                f"Unable to read the previous version of s3://{self.bucket}/{key}"
+            ) from exc
+
     def read(self, key: str) -> bytes:
         if PurePosixPath(key).suffix.casefold() != ".pdf":
             raise ValueError("Only PDF Confluence exports are supported.")

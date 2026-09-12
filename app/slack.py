@@ -13,14 +13,14 @@ from threading import Lock
 from uuid import UUID, uuid4
 
 import boto3
-import httpx
 from botocore.exceptions import BotoCoreError, ClientError
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_sdk.signature import SignatureVerifier
 
 from app.agent import PlatformKnowledgeAgent, public_answer
-from app.diagram import render_flow, render_mindmap
+from app.coverage import Coverage
+from app.diagram import DEFAULT_FLOW_TITLE, render_flow, render_mindmap
 from app.models import KnowledgeAnswer, MindMap
 from app.waiting import waiting_message
 
@@ -47,7 +47,7 @@ class Rendered:
     answer: str
     blocks: tuple[dict[str, object], ...] = ()
     visual: str | None = None
-    diagram_title: str = "TME high-level view"
+    diagram_title: str = DEFAULT_FLOW_TITLE
 
 
 class DiagramStore:
@@ -183,16 +183,21 @@ class SlackIntegration:
             self._events[event_id] = now
             return True
 
+    def post_coverage(self, channel: str, thread_ts: str, report: Coverage) -> None:
+        """Report what the platform holds. Never routed through the agent."""
+        self._post(channel, thread_ts, *coverage_message(report))
+
     def process(self, channel: str, thread_ts: str, text: str) -> None:
-        question = " ".join(MENTION.sub("", text).split()).strip()
+        question = mention_question(text)
         if not question:
             self._post(
                 channel,
                 thread_ts,
                 (
-                    "Hi 👋 What would you like to know about TME? "
-                    "You can ask about its services, how things work, "
-                    "onboarding, prerequisites, or where to find guidance."
+                    "Hi 👋 What would you like to know about "
+                    f"{self.agent.platform_name}? You can ask about its "
+                    "services, how things work, onboarding, prerequisites, "
+                    "or where to find guidance."
                 ),
                 (),
             )
@@ -212,33 +217,6 @@ class SlackIntegration:
             self._update(channel, progress_ts, rendered.answer, rendered.blocks)
         else:
             self._post(channel, thread_ts, rendered.answer, rendered.blocks)
-
-    def process_slash(
-        self,
-        question: str,
-        response_url: str,
-        conversation_id: str,
-    ) -> None:
-        rendered = self._answer(question, conversation_id=conversation_id)
-        payload: dict[str, object] = {
-            "response_type": "in_channel",
-            "replace_original": False,
-            "text": rendered.answer,
-        }
-        if rendered.blocks:
-            payload["blocks"] = list(rendered.blocks)
-        try:
-            response = httpx.post(
-                response_url,
-                json=payload,
-                timeout=10,
-            )
-            response.raise_for_status()
-        except httpx.HTTPError:
-            LOGGER.exception(
-                "Slack slash-command response delivery failed.",
-                extra={"operation": "respond_to_command", "component": "slack"},
-            )
 
     def _partial_updater(self, channel: str, timestamp: str) -> Callable[[str], None]:
         """Return a callback that grows the placeholder message as text arrives."""
@@ -265,7 +243,7 @@ class SlackIntegration:
             else:
                 result = self.agent.answer(question, conversation_id=conversation_id)
             answer = public_answer(result.answer)
-            title = _diagram_title(result.response_type)
+            title = _diagram_title(result.response_type, self.agent.platform_name)
             if result.mindmap is not None:
                 title = "Knowledge map"
                 diagram = self._mindmap_url(result.mindmap, title)
@@ -275,7 +253,9 @@ class SlackIntegration:
                 diagram = None
             return Rendered(
                 answer=answer,
-                blocks=self._blocks(result, answer, diagram, title),
+                blocks=self._blocks(
+                    result, answer, self.agent.platform_name, diagram, title
+                ),
                 visual=result.visual,
                 diagram_title=title,
             )
@@ -361,8 +341,9 @@ class SlackIntegration:
     def _blocks(
         result: KnowledgeAnswer,
         answer: str,
+        platform_name: str,
         diagram_url: str | None = None,
-        diagram_title: str = "TME high-level view",
+        diagram_title: str = DEFAULT_FLOW_TITLE,
     ) -> tuple[dict[str, object], ...]:
         answer_id = str(uuid4())
         display_answer = (
@@ -370,7 +351,7 @@ class SlackIntegration:
         )
         blocks: list[dict[str, object]] = []
         response_title = {
-            "onboarding": "👋 Welcome to TME",
+            "onboarding": f"👋 Welcome to {platform_name}",
             "comparison": "Service comparison",
             "mapping": "Connected knowledge map",
         }.get(result.response_type)
@@ -488,28 +469,29 @@ class SlackIntegration:
                 answer[: self.maximum_message_length - 24].rstrip()
                 + "\n\n_Response truncated._"
             )
-        try:
-            response = self.client.chat_postMessage(
-                channel=channel,
-                thread_ts=thread_ts,
-                text=answer,
-                blocks=list(blocks) or None,
-                unfurl_links=False,
-                unfurl_media=False,
-            )
-            timestamp = response.get("ts")
-            return timestamp if isinstance(timestamp, str) else None
-        except SlackApiError as exc:
-            LOGGER.warning(
-                "Slack response delivery failed.",
-                extra={
-                    "operation": "post_message",
-                    "component": "slack",
-                    "slack_error": _slack_error_code(exc),
-                    "slack_error_detail": _slack_error_detail(exc),
-                },
-            )
-            return None
+        for attempt in _delivery_attempts(blocks):
+            try:
+                response = self.client.chat_postMessage(
+                    channel=channel,
+                    thread_ts=thread_ts,
+                    text=answer,
+                    blocks=list(attempt) or None,
+                    unfurl_links=False,
+                    unfurl_media=False,
+                )
+                timestamp = response.get("ts")
+                return timestamp if isinstance(timestamp, str) else None
+            except SlackApiError as exc:
+                LOGGER.warning(
+                    "Slack response delivery failed.",
+                    extra={
+                        "operation": "post_message",
+                        "component": "slack",
+                        "slack_error": _slack_error_code(exc),
+                        "slack_error_detail": _slack_error_detail(exc),
+                    },
+                )
+        return None
 
     def _update(
         self,
@@ -580,6 +562,63 @@ def _slack_error_detail(error: SlackApiError) -> str:
     return ""
 
 
+def mention_question(text: str) -> str:
+    """The question a mention or direct message is really asking."""
+    return " ".join(MENTION.sub("", text).split()).strip()
+
+
+def coverage_message(report: Coverage) -> tuple[str, tuple[dict[str, object], ...]]:
+    """The one rendering of a coverage report, shared by every Slack surface."""
+    return _coverage_text(report), _coverage_blocks(report)
+
+
+def _coverage_text(report: Coverage) -> str:
+    documented = sum(1 for item in report.components if item.documented)
+    return (
+        f"I hold {report.total_chunks} indexed passages across "
+        f"{documented} of {len(report.components)} components."
+    )
+
+
+def _coverage_blocks(report: Coverage) -> tuple[dict[str, object], ...]:
+    marks = {
+        "documented": "🟢",
+        "confluence only": "🔵",
+        "readme only": "🟡",
+        "no documentation": "🔴",
+    }
+    lines = [
+        f"{marks[item.state]}  *{item.name}* — {item.state}"
+        + (f" ({item.documented} passages)" if item.documented else "")
+        for item in report.components
+    ]
+    blocks: list[dict[str, object]] = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "📚 What I currently know"},
+        },
+        {"type": "section", "text": {"type": "mrkdwn", "text": _coverage_text(report)}},
+        {"type": "section", "text": {"type": "mrkdwn", "text": "\n".join(lines)}},
+    ]
+    gaps: list[str] = []
+    if report.undocumented:
+        names = ", ".join(item.name for item in report.undocumented)
+        gaps.append(f"No documentation yet for *{names}*.")
+    if report.unmapped_documents:
+        gaps.append(
+            f"{report.unmapped_documents} document(s) are indexed but no component "
+            "claims them."
+        )
+    if gaps:
+        blocks.append(
+            {
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": "  ".join(gaps)}],
+            }
+        )
+    return tuple(blocks)
+
+
 def _flow_nodes(visual: str) -> tuple[str, ...]:
     """Split a stored flow back into its grounded nodes."""
     return tuple(
@@ -589,12 +628,12 @@ def _flow_nodes(visual: str) -> tuple[str, ...]:
     )[:8]
 
 
-def _diagram_title(response_type: str) -> str:
+def _diagram_title(response_type: str, platform_name: str) -> str:
     return {
         "onboarding": "Your onboarding journey",
         "comparison": "Service comparison",
         "mapping": "Connected knowledge map",
-    }.get(response_type, "TME high-level view")
+    }.get(response_type, f"{platform_name} high-level view")
 
 
 def _visual_blocks(title: str, visual: str) -> tuple[dict[str, object], ...]:

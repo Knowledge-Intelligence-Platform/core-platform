@@ -1,3 +1,14 @@
+variable "name_prefix" {
+  description = "Prefix for every resource this deployment creates. One tenant, one prefix."
+  type        = string
+  default     = "knowledge-intelligence"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{1,26}[a-z0-9]$", var.name_prefix)) && !startswith(var.name_prefix, "internal-")
+    error_message = "name_prefix must be 3-28 characters of lowercase letters, digits and hyphens, start with a letter, end with a letter or digit, and not start with \"internal-\"."
+  }
+}
+
 variable "aws_region" {
   description = "AWS region where Knowledge Intelligence resources are deployed. S3 Vectors uses ap-south-1."
   type        = string
@@ -328,6 +339,48 @@ variable "diagram_prefix" {
   description = "S3 prefix holding rendered Slack flow diagrams."
   type        = string
   default     = "diagrams/slack"
+}
+
+variable "registry_appconfig_enabled" {
+  description = "Serve the component registry through AWS AppConfig."
+  type        = bool
+  default     = false
+}
+
+variable "registry_bake_time_in_minutes" {
+  description = "Minutes AppConfig monitors alarms before a registry deployment is final."
+  type        = number
+  default     = 5
+}
+
+variable "registry_publish_enabled" {
+  description = "Create the IAM role the component registry repository assumes to publish."
+  type        = bool
+  default     = false
+}
+
+variable "create_github_oidc_provider" {
+  description = "Create the account-wide GitHub Actions OIDC provider rather than reusing an existing one."
+  type        = bool
+  default     = true
+}
+
+variable "registry_repository" {
+  description = "GitHub repository allowed to publish the component registry."
+  type        = string
+  default     = "example-org/kip-component-registry"
+}
+
+variable "registry_version_retention_days" {
+  description = "Days a superseded component registry version stays available for rollback."
+  type        = number
+  default     = 90
+}
+
+variable "registry_prefix" {
+  description = "S3 prefix holding the published component registry document."
+  type        = string
+  default     = "registry"
 }
 
 variable "vector_index_name" {

@@ -61,6 +61,10 @@ class HybridSearch:
         self._postings: dict[str, tuple[tuple[str, float], ...]] = {}
         self._lock = RLock()
 
+    def cached_chunks(self) -> tuple[Chunk, ...]:
+        with self._lock:
+            return tuple(self._chunks_by_id.values())
+
     @property
     def cached_chunk_count(self) -> int:
         with self._lock:
@@ -203,7 +207,7 @@ class HybridSearch:
 
 
 def _singular(term: str) -> str:
-    """Fold a simple plural so `osbuild` and `osbuilds` share a posting list."""
+    """Fold a simple plural so `knowledge-source` and `knowledge-source` share a posting list."""
     if len(term) > 4 and term.endswith("s") and not term.endswith(("ss", "us", "is")):
         return term[:-1]
     return term

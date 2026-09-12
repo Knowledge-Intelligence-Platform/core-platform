@@ -15,7 +15,7 @@ from app.models import (
     SourceType,
 )
 
-COMPONENT = Component(id="eks-service", name="EKS As A Service", description="EKS.")
+COMPONENT = Component(id="kip-service", name="KIP Service As A Service", description="KIP Service.")
 README = "# Title\n\nOnboarding starts with a cluster request.\n"
 
 
@@ -60,20 +60,20 @@ def make_ingestion(registry: StubRegistry, github: StubGitHub) -> Ingestion:
 
 
 def test_an_unreadable_repository_is_skipped_not_fatal() -> None:
-    github = StubGitHub({"sky-uk/broken": "raise", "sky-uk/good": "readme"})
-    ingestion = make_ingestion(StubRegistry("sky-uk/broken", "sky-uk/good"), github)
+    github = StubGitHub({"example-org/broken": "raise", "example-org/good": "readme"})
+    ingestion = make_ingestion(StubRegistry("example-org/broken", "example-org/good"), github)
 
     documents, skipped = ingestion._github_documents()
 
     assert skipped == 1
     assert len(documents) == 1
-    assert documents[0].component_id == "eks-service"
-    assert github.seen == ["sky-uk/broken", "sky-uk/good"]
+    assert documents[0].component_id == "kip-service"
+    assert github.seen == ["example-org/broken", "example-org/good"]
 
 
 def test_a_repository_without_a_readme_is_not_counted_as_skipped() -> None:
-    github = StubGitHub({"sky-uk/empty": "missing"})
-    ingestion = make_ingestion(StubRegistry("sky-uk/empty"), github)
+    github = StubGitHub({"example-org/empty": "missing"})
+    ingestion = make_ingestion(StubRegistry("example-org/empty"), github)
 
     documents, skipped = ingestion._github_documents()
 
@@ -82,8 +82,8 @@ def test_a_repository_without_a_readme_is_not_counted_as_skipped() -> None:
 
 
 def test_every_repository_failing_still_returns_cleanly() -> None:
-    github = StubGitHub({"sky-uk/a": "raise", "sky-uk/b": "raise"})
-    ingestion = make_ingestion(StubRegistry("sky-uk/a", "sky-uk/b"), github)
+    github = StubGitHub({"example-org/a": "raise", "example-org/b": "raise"})
+    ingestion = make_ingestion(StubRegistry("example-org/a", "example-org/b"), github)
 
     documents, skipped = ingestion._github_documents()
 
@@ -102,7 +102,7 @@ def test_an_unexpected_error_still_propagates() -> None:
     with pytest.raises(MemoryError):
         ingestion._github_documents()
 
-PDF_KEY = "raw/confluence/eks/onboarding.pdf"
+PDF_KEY = "raw/confluence/kip-service/onboarding.pdf"
 
 
 def make_chunk(chunk_id: str, source_type: SourceType) -> Chunk:
@@ -113,7 +113,7 @@ def make_chunk(chunk_id: str, source_type: SourceType) -> Chunk:
         text="Existing indexed content.",
         source_type=source_type,
         source_location="s3://bucket/key",
-        component_id="eks-service",
+        component_id="kip-service",
     )
 
 EXISTING = (
@@ -165,16 +165,16 @@ class StubEmbeddings:
 
 class FullRegistry(StubRegistry):
     def __init__(self) -> None:
-        super().__init__("sky-uk/good")
+        super().__init__("example-org/good")
 
     def as_documents(self) -> tuple[ParsedDocument, ...]:
         return (
             ParsedDocument(
                 document_id="reg-doc",
-                title="EKS component registry",
+                title="KIP Service component registry",
                 source_type=SourceType.REGISTRY,
-                source_location="registry/components/eks-service.yaml",
-                component_id="eks-service",
+                source_location="tests/fixtures-registry/components/kip-service.yaml",
+                component_id="kip-service",
                 blocks=(),
             ),
         )
@@ -191,7 +191,7 @@ def parts(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
             title="Onboarding",
             source_type=SourceType.CONFLUENCE,
             source_location=f"s3://bucket/{PDF_KEY}",
-            component_id="eks-service",
+            component_id="kip-service",
             blocks=(),
         )
 
@@ -203,7 +203,7 @@ def parts(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
     s3, vectors, search = StubS3(), StubVectors(), StubSearch()
     ingestion = Ingestion(
         s3=s3,  # type: ignore[arg-type]
-        github=StubGitHub({"sky-uk/good": "readme"}),  # type: ignore[arg-type]
+        github=StubGitHub({"example-org/good": "readme"}),  # type: ignore[arg-type]
         registry=FullRegistry(),  # type: ignore[arg-type]
         embeddings=StubEmbeddings(),  # type: ignore[arg-type]
         vectors=vectors,  # type: ignore[arg-type]
@@ -325,5 +325,5 @@ def test_a_mapped_pdf_still_gets_its_component(unmapped: dict[str, Any]) -> None
         frozenset({SourceType.CONFLUENCE})
     )
 
-    assert unmapped["seen"]["component_id"] == "eks-service"
+    assert unmapped["seen"]["component_id"] == "kip-service"
     assert summary.unmapped == 0
