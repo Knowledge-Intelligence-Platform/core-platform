@@ -55,15 +55,31 @@ tfflag_of() {
   sed -n "s/^[[:space:]]*${1}[[:space:]]*=[[:space:]]*\([a-z]*\).*/\1/p" "${TFVARS_FILE}" | head -1
 }
 
+has_tfvar() {
+  grep -Eq "^[[:space:]]*${1}[[:space:]]*=" "${TFVARS_FILE}"
+}
+
+if [[ "$(tfflag_of application_enabled)" != "true" ]]; then
+  echo "Set application_enabled=true to deploy the Core Platform application." >&2
+  exit 1
+fi
+
 NAME_PREFIX="$(tfvar_of name_prefix)"
 NAME_PREFIX="${NAME_PREFIX:-knowledge-intelligence}"
+APPLICATION_SECRET_NAME="$(tfvar_of application_secret_name)"
+APPLICATION_SECRET_NAME="${APPLICATION_SECRET_NAME:-${NAME_PREFIX}/application}"
 KNOWLEDGE_BUCKET="$(tfvar_of knowledge_bucket_name)"
 PREFLIGHT_REGION="$(tfvar_of aws_region)"
 
-echo "Checking what Terraform reads but never creates."
+echo "Checking externally managed prerequisites."
 
 if [[ -z "${KNOWLEDGE_BUCKET}" || -z "${PREFLIGHT_REGION}" ]]; then
   echo "Could not read knowledge_bucket_name and aws_region from ${TFVARS_FILE}" >&2
+  exit 1
+fi
+
+if ! has_tfvar vpc_cidr || ! has_tfvar public_subnet_cidrs; then
+  echo "Core network inputs vpc_cidr and public_subnet_cidrs are required in ${TFVARS_FILE}" >&2
   exit 1
 fi
 
@@ -73,137 +89,55 @@ if ! aws s3api head-bucket --bucket "${KNOWLEDGE_BUCKET}" >/dev/null 2>&1; then
   exit 1
 fi
 
-APPLICATION_SECRET="${NAME_PREFIX}/application"
-SECRET_JSON="$(
-  aws secretsmanager get-secret-value \
-    --region "${PREFLIGHT_REGION}" \
-    --secret-id "${APPLICATION_SECRET}" \
-    --query SecretString \
-    --output text 2>/dev/null || true
-)"
-
-if [[ -z "${SECRET_JSON}" ]]; then
-  echo "Secret not found or unreadable: ${APPLICATION_SECRET}" >&2
-  echo "Terraform reads it but never creates it. Create it first." >&2
-  exit 1
-fi
-
-required_secret_keys=("OPENAI_API_KEY")
+required_secret_keys=()
+[[ "$(tfflag_of query_api_enabled)" == "true" ]] &&
+  required_secret_keys+=("QUERY_TOKENS")
 [[ "$(tfflag_of slack_enabled)" == "true" ]] &&
   required_secret_keys+=("SLACK_BOT_TOKEN" "SLACK_SIGNING_SECRET")
-[[ "$(tfflag_of github_enabled)" == "true" ]] &&
-  required_secret_keys+=("GITHUB_TOKEN")
+[[ "$(tfflag_of admin_reindex_enabled)" == "true" ]] &&
+  required_secret_keys+=("ADMIN_TOKEN")
 
-missing_secret_keys=()
-for key in "${required_secret_keys[@]}"; do
-  if ! printf '%s' "${SECRET_JSON}" | grep -q "\"${key}\""; then
-    missing_secret_keys+=("${key}")
+if [[ ${#required_secret_keys[@]} -gt 0 ]]; then
+  if ! SECRET_JSON="$(aws secretsmanager get-secret-value \
+    --region "${PREFLIGHT_REGION}" --secret-id "${APPLICATION_SECRET_NAME}" \
+    --query SecretString --output text 2>/dev/null)"; then
+    echo "Application secret not found or unreadable: ${APPLICATION_SECRET_NAME}" >&2
+    echo "Create it in Secrets Manager or set application_secret_name in ${TFVARS_FILE}." >&2
+    exit 1
   fi
-done
-
-if [[ ${#missing_secret_keys[@]} -gt 0 ]]; then
-  echo "Secret ${APPLICATION_SECRET} is missing: ${missing_secret_keys[*]}" >&2
-  echo "The service would start and then crash-loop without them." >&2
-  exit 1
+  for key in "${required_secret_keys[@]}"; do
+    if ! printf '%s' "${SECRET_JSON}" | grep -q "\"${key}\""; then
+      echo "Application secret is missing required key: ${key}" >&2
+      exit 1
+    fi
+  done
+  unset SECRET_JSON
 fi
 
 echo "Initialising Terraform."
 terraform -chdir="${INFRA_DIR}" init \
   -input=false \
+  -reconfigure \
   -backend-config="${BACKEND_CONFIG}"
 
-echo "Creating the ECR repository first."
+echo "Deploying infrastructure."
 terraform -chdir="${INFRA_DIR}" apply \
   -input=false \
   -auto-approve \
-  -var-file="${TFVARS_FILE}" \
-  -target=aws_ecr_repository.application
+  -var-file="${TFVARS_FILE}"
 
 AWS_REGION="$(
   terraform -chdir="${INFRA_DIR}" output -raw aws_region
 )"
 export AWS_REGION
 
+VPC_ID="$(terraform -chdir="${INFRA_DIR}" output -raw vpc_id)"
+PUBLIC_SUBNET_IDS="$(terraform -chdir="${INFRA_DIR}" output -json public_subnet_ids)"
+echo "Core VPC: ${VPC_ID}"
+echo "Public subnets: ${PUBLIC_SUBNET_IDS}"
+
 echo "Building and pushing the latest container image."
 "${SCRIPT_DIR}/build.sh"
-
-echo "Deploying the remaining infrastructure."
-terraform -chdir="${INFRA_DIR}" apply \
-  -input=false \
-  -auto-approve \
-  -var-file="${TFVARS_FILE}"
-
-APPCONFIG_APPLICATION_ID="$(
-  terraform -chdir="${INFRA_DIR}" output -raw registry_appconfig_application_id 2>/dev/null || true
-)"
-
-if [[ -n "${APPCONFIG_APPLICATION_ID}" ]]; then
-  APPCONFIG_ENVIRONMENT_ID="$(
-    terraform -chdir="${INFRA_DIR}" output -raw registry_appconfig_environment_id
-  )"
-
-  EXISTING_DEPLOYMENT="$(
-    aws appconfig list-deployments \
-      --region "${AWS_REGION}" \
-      --application-id "${APPCONFIG_APPLICATION_ID}" \
-      --environment-id "${APPCONFIG_ENVIRONMENT_ID}" \
-      --max-results 1 \
-      --query 'Items[0].DeploymentNumber' \
-      --output text
-  )"
-
-  if [[ "${EXISTING_DEPLOYMENT}" == "None" || -z "${EXISTING_DEPLOYMENT}" ]]; then
-    KNOWLEDGE_BUCKET="$(
-      terraform -chdir="${INFRA_DIR}" output -raw knowledge_bucket_name
-    )"
-    REGISTRY_KEY="$(
-      terraform -chdir="${INFRA_DIR}" output -raw registry_document_key
-    )"
-
-    REGISTRY_VERSION="$(
-      aws s3api head-object \
-        --region "${AWS_REGION}" \
-        --bucket "${KNOWLEDGE_BUCKET}" \
-        --key "${REGISTRY_KEY}" \
-        --query VersionId \
-        --output text 2>/dev/null || true
-    )"
-
-    if [[ -z "${REGISTRY_VERSION}" || "${REGISTRY_VERSION}" == "None" ]]; then
-      echo "No component registry has been published yet; the service will use its bundled snapshot."
-    else
-      APPCONFIG_PROFILE_ID="$(
-        terraform -chdir="${INFRA_DIR}" output -raw registry_appconfig_profile_id
-      )"
-      APPCONFIG_STRATEGY_ID="$(
-        terraform -chdir="${INFRA_DIR}" output -raw registry_appconfig_strategy_id
-      )"
-
-      echo "Making the published registry live for the first time."
-      DEPLOYMENT_NUMBER="$(
-        aws appconfig start-deployment \
-          --region "${AWS_REGION}" \
-          --application-id "${APPCONFIG_APPLICATION_ID}" \
-          --environment-id "${APPCONFIG_ENVIRONMENT_ID}" \
-          --configuration-profile-id "${APPCONFIG_PROFILE_ID}" \
-          --deployment-strategy-id "${APPCONFIG_STRATEGY_ID}" \
-          --configuration-version "${REGISTRY_VERSION}" \
-          --description "First registry deployment from deploy.sh" \
-          --query DeploymentNumber \
-          --output text
-      )"
-
-      echo "Waiting for registry deployment ${DEPLOYMENT_NUMBER} to complete."
-      aws appconfig wait deployment-complete \
-        --region "${AWS_REGION}" \
-        --application-id "${APPCONFIG_APPLICATION_ID}" \
-        --environment-id "${APPCONFIG_ENVIRONMENT_ID}" \
-        --deployment-number "${DEPLOYMENT_NUMBER}"
-    fi
-  else
-    echo "The component registry is already deployed; leaving it to the registry repository."
-  fi
-fi
 
 ECS_CLUSTER_ARN="$(
   terraform -chdir="${INFRA_DIR}" output -raw ecs_cluster_arn

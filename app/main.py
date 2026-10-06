@@ -4,47 +4,43 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import secrets
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from threading import Lock
 from time import monotonic
-from typing import cast
+from typing import Annotated, cast
 from urllib.parse import parse_qs
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, Header, HTTPException, Request, Security
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
 from app.agent import PlatformKnowledgeAgent, public_answer
-from app.appconfig import AppConfigReader
 from app.config import Settings, get_settings
-from app.coverage import Coverage, coverage, is_coverage_request
-from app.diagram_analysis import DiagramAnalyzer
-from app.embeddings import Embeddings
-from app.github_reader import GitHubReader
-from app.ingestion import Ingestion
+from app.knowledge_base import KnowledgeBase, KnowledgeBaseUnavailableError
 from app.models import (
     HealthResponse,
     KnowledgeQueryResponse,
     QueryRequest,
     ReadyResponse,
-    ReindexSummary,
+    SyncJob,
 )
-from app.registry import ComponentRegistry, load_registry
-from app.s3_reader import S3Reader
-from app.search import HybridSearch
 from app.slack import (
-    DiagramStore,
     FeedbackStore,
     SlackIntegration,
-    mention_question,
 )
-from app.vector_store import VectorStore
+from app.tasks import (
+    KnowledgeTasks,
+    TaskDecision,
+    TaskError,
+    TaskRecord,
+    TaskStore,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,79 +76,23 @@ def configure_logging() -> None:
 @dataclass
 class Application:
     settings: Settings
-    registry: ComponentRegistry
     agent: PlatformKnowledgeAgent
-    search: HybridSearch
-    ingestion: Ingestion
-    vector_store_reachable: bool
+    knowledge_base: KnowledgeBase
     slack: SlackIntegration | None
     reindex_lock: Lock
-
-
-def _registry_sources(
-    settings: Settings, source: S3Reader
-) -> tuple[tuple[str, Callable[[str], str]], ...]:
-    """Every place this tenant's registry may be read from, best first.
-
-    All of them belong to the tenant being deployed, so a failure degrades to
-    that tenant's own older data and never to anyone else's.
-    """
-    sources: list[tuple[str, Callable[[str], str]]] = []
-    if settings.registry_appconfig_application:
-        sources.append(
-            (
-                "appconfig",
-                AppConfigReader(
-                    region=settings.aws_region,
-                    application=settings.registry_appconfig_application,
-                    environment=settings.registry_appconfig_environment,
-                    profile=settings.registry_appconfig_profile,
-                ).read_text,
-            )
-        )
-    if settings.registry_document_key:
-        sources.append(("s3", source.read_text))
-        sources.append(("s3-previous-version", source.read_previous_text))
-    return tuple(sources)
+    tasks: KnowledgeTasks | None = None
 
 
 def build_application(settings: Settings) -> Application:
-    source = S3Reader(
-        settings.aws_region,
-        settings.s3_bucket,
-        settings.max_document_size_bytes,
-    )
-    registry = load_registry(
-        directory=settings.registry_directory,
-        document_key=settings.registry_document_key,
-        cache_path=settings.registry_cache_path,
-        sources=_registry_sources(settings, source),
-    )
-    embeddings = Embeddings(
-        settings.openai_api_key.get_secret_value(),
-        settings.embedding_model,
-        settings.embedding_dimensions,
-    )
-    vectors = VectorStore(
+    knowledge_base = KnowledgeBase(
         region=settings.aws_region,
-        source_bucket=settings.s3_bucket,
-        vector_bucket=settings.vector_bucket_name,
-        index_name=settings.vector_index_name,
-        dimensions=settings.embedding_dimensions,
+        knowledge_base_id=settings.knowledge_base_id,
+        data_source_id=settings.knowledge_base_data_source_id,
     )
-    search = HybridSearch(embeddings, vectors, settings.vector_top_k)
-    try:
-        search.replace_keyword_cache(vectors.load_chunks())
-    except RuntimeError:
-        LOGGER.exception(
-            "Keyword search cache could not be restored.",
-            extra={"operation": "restore_keyword_cache", "component": "search"},
-        )
     agent = PlatformKnowledgeAgent(
-        api_key=settings.openai_api_key.get_secret_value(),
-        model_id=settings.openai_model,
-        platform_name=registry.root.name,
-        search=search,
+        model_id=settings.bedrock_model_id,
+        platform_name=settings.platform_name,
+        search=knowledge_base,
         maximum_results=settings.agent_max_search_results,
         conversation_window=settings.slack_conversation_window,
         metrics_enabled=settings.metrics_enabled,
@@ -164,35 +104,8 @@ def build_application(settings: Settings) -> Application:
         session_bucket=settings.s3_bucket,
         session_prefix=settings.session_prefix,
         aws_region=settings.aws_region,
-    )
-    github = (
-        GitHubReader(
-            settings.github_token.get_secret_value(),
-            settings.github_api_url,
-        )
-        if settings.github_enabled
-        else None
-    )
-    ingestion = Ingestion(
-        s3=source,
-        github=github,
-        registry=registry,
-        embeddings=embeddings,
-        vectors=vectors,
-        search=search,
-        s3_prefix=settings.s3_prefix,
-        batch_size=settings.embedding_batch_size,
-        ingest_unmapped_documents=settings.ingest_unmapped_documents,
-        diagram_analyzer=(
-            DiagramAnalyzer(
-                api_key=settings.openai_api_key.get_secret_value(),
-                model_id=settings.visual_analysis_model or settings.openai_model,
-                render_dpi=settings.visual_render_dpi,
-                maximum_pages=settings.visual_max_pages_per_document,
-            )
-            if settings.visual_analysis_enabled
-            else None
-        ),
+        max_tokens=settings.bedrock_max_tokens,
+        prompt_caching_enabled=settings.bedrock_prompt_caching_enabled,
     )
     slack = (
         SlackIntegration(
@@ -201,16 +114,11 @@ def build_application(settings: Settings) -> Application:
             agent=agent,
             maximum_message_length=settings.slack_max_message_length,
             streaming_enabled=settings.slack_streaming_enabled,
+            require_identity=True,
             feedback_store=FeedbackStore(
                 region=settings.aws_region,
                 bucket=settings.s3_bucket,
                 prefix=settings.feedback_prefix,
-            ),
-            diagram_store=DiagramStore(
-                region=settings.aws_region,
-                bucket=settings.s3_bucket,
-                prefix=settings.diagram_prefix,
-                base_url=settings.public_base_url,
             ),
         )
         if settings.slack_enabled
@@ -218,25 +126,33 @@ def build_application(settings: Settings) -> Application:
     )
     return Application(
         settings=settings,
-        registry=registry,
         agent=agent,
-        search=search,
-        ingestion=ingestion,
-        vector_store_reachable=vectors.reachable(),
+        knowledge_base=knowledge_base,
         slack=slack,
         reindex_lock=Lock(),
+        tasks=KnowledgeTasks(
+            knowledge_base=knowledge_base,
+            store=TaskStore(
+                bucket=settings.s3_bucket, prefix=settings.task_prefix, region=settings.aws_region
+            ),
+            region=settings.aws_region,
+        )
+        if settings.tasks_enabled
+        else None,
     )
 
 
 @asynccontextmanager
 async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
-    fastapi_app.state.application = build_application(get_settings())
-    yield
-    application: Application = fastapi_app.state.application
-    if application.ingestion.github:
-        application.ingestion.github.close()
-    application.ingestion.vectors.close()
+    current = build_application(get_settings())
+    fastapi_app.state.application = current
+    try:
+        yield
+    finally:
+        current.knowledge_base.close()
+        if current.tasks is not None:
+            current.tasks.store.close()
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -268,6 +184,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(RequestLoggingMiddleware)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def application(request: Request) -> Application:
@@ -282,65 +199,129 @@ def health() -> HealthResponse:
 @app.get("/ready", response_model=ReadyResponse)
 def ready(request: Request) -> ReadyResponse:
     current = application(request)
-    return ReadyResponse(
-        status="ready" if current.vector_store_reachable else "not_ready",
-        vector_store_reachable=current.vector_store_reachable,
-        cached_chunks=current.search.cached_chunk_count,
-    )
-
-
-DIAGRAM_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-
-
-@app.api_route("/diagrams/{diagram_id}.png", methods=["GET", "HEAD"])
-def diagram(diagram_id: str, request: Request) -> Response:
-    current = application(request)
-    if current.slack is None or current.slack.diagram_store is None:
-        raise HTTPException(status_code=404, detail="Not found.")
-    if not DIAGRAM_ID.fullmatch(diagram_id):
-        raise HTTPException(status_code=404, detail="Not found.")
-    image = current.slack.diagram_store.read(diagram_id)
-    if image is None:
-        raise HTTPException(status_code=404, detail="Not found.")
-    return Response(
-        content=image,
-        media_type="image/png",
-        headers={"Cache-Control": "public, max-age=86400, immutable"},
-    )
+    reachable = current.knowledge_base.reachable()
+    if not reachable:
+        raise HTTPException(status_code=503, detail="Knowledge base is unavailable.")
+    return ReadyResponse(status="ready", knowledge_base_reachable=True)
 
 
 @app.post("/knowledge/query", response_model=KnowledgeQueryResponse)
-def query(payload: QueryRequest, request: Request) -> KnowledgeQueryResponse:
-    result = application(request).agent.answer(
+def query(
+    payload: QueryRequest,
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+) -> KnowledgeQueryResponse:
+    current = application(request)
+    authorization = (
+        f"{credentials.scheme} {credentials.credentials}" if credentials is not None else None
+    )
+    user_id = _query_identity(current.settings, authorization)
+    result = current.agent.answer(
         payload.prompt,
         conversation_id=payload.conversation_id,
+        user_id=user_id,
     )
     return KnowledgeQueryResponse(answer=public_answer(result.answer))
 
 
-@app.post("/admin/reindex", response_model=ReindexSummary)
+def _query_identity(settings: Settings, authorization: str | None) -> str:
+    if not settings.query_tokens:
+        raise HTTPException(status_code=503, detail="Query authentication is not configured.")
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.casefold() != "bearer" or not token:
+        raise HTTPException(status_code=401, detail="A valid bearer token is required.")
+    for email, expected in settings.query_tokens.items():
+        if secrets.compare_digest(token.encode(), expected.get_secret_value().encode()):
+            return email
+    raise HTTPException(status_code=401, detail="A valid bearer token is required.")
+
+
+def _task_access(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None,
+) -> tuple[KnowledgeTasks, str]:
+    current = application(request)
+    authorization = (
+        f"{credentials.scheme} {credentials.credentials}" if credentials is not None else None
+    )
+    owner = _query_identity(current.settings, authorization)
+    if current.tasks is None:
+        raise HTTPException(status_code=503, detail="Task operations are not enabled.")
+    if owner not in current.settings.task_allowed_identities:
+        raise HTTPException(status_code=403, detail="This identity cannot operate knowledge tasks.")
+    return current.tasks, owner
+
+
+@app.get("/tasks/source", tags=["Knowledge tasks"])
+def task_source(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+) -> dict[str, object]:
+    tasks, _ = _task_access(request, credentials)
+    return tasks.knowledge_base.source_status()
+
+
+@app.post("/tasks/sync/{task_id}", response_model=TaskRecord, tags=["Knowledge tasks"])
+def propose_sync(
+    task_id: UUID,
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+) -> TaskRecord:
+    tasks, owner = _task_access(request, credentials)
+    return tasks.propose(owner, task_id)
+
+
+@app.get("/tasks/{task_id}", response_model=TaskRecord, tags=["Knowledge tasks"])
+def get_task(
+    task_id: UUID,
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+) -> TaskRecord:
+    tasks, owner = _task_access(request, credentials)
+    return tasks.get(owner, task_id)
+
+
+@app.post("/tasks/{task_id}/decision", response_model=TaskRecord, tags=["Knowledge tasks"])
+def decide_task(
+    task_id: UUID,
+    payload: TaskDecision,
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+) -> TaskRecord:
+    tasks, owner = _task_access(request, credentials)
+    return tasks.decide(owner, task_id, payload.decision)
+
+
+@app.post("/tasks/{task_id}/resume", response_model=TaskRecord, tags=["Knowledge tasks"])
+def resume_task(
+    task_id: UUID,
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
+) -> TaskRecord:
+    tasks, owner = _task_access(request, credentials)
+    return tasks.resume(owner, task_id)
+
+
+@app.exception_handler(TaskError)
+async def task_error(request: Request, error: TaskError) -> JSONResponse:
+    return JSONResponse(status_code=error.status_code, content={"detail": str(error)})
+
+
+@app.post("/admin/reindex", response_model=SyncJob, status_code=202)
 def reindex(
     request: Request,
     x_admin_token: str | None = Header(default=None),
-) -> ReindexSummary:
+) -> SyncJob:
     current = application(request)
     configured = current.settings.admin_token.get_secret_value()
     if not configured:
-        raise HTTPException(
-            status_code=503, detail="Administrative reindexing is not configured."
-        )
+        raise HTTPException(status_code=503, detail="Administrative reindexing is not configured.")
     if x_admin_token is None or not secrets.compare_digest(x_admin_token, configured):
-        raise HTTPException(
-            status_code=401, detail="Invalid administrative credentials."
-        )
+        raise HTTPException(status_code=401, detail="Invalid administrative credentials.")
     if not current.reindex_lock.acquire(blocking=False):
-        raise HTTPException(
-            status_code=409, detail="A reindex operation is already running."
-        )
+        raise HTTPException(status_code=409, detail="A reindex operation is already running.")
     try:
-        result = current.ingestion.run()
-        current.vector_store_reachable = True
-        return result
+        return current.knowledge_base.run()
     finally:
         current.reindex_lock.release()
 
@@ -352,13 +333,8 @@ def _ephemeral(text: str) -> JSONResponse:
 def _no_commands() -> JSONResponse:
     """Slash commands were removed; asking in words is the only way in."""
     return _ephemeral(
-        "No commands needed \u2014 just mention me or send me a message, "
-        "and ask in your own words."
+        "No commands needed \u2014 just mention me or send me a message, and ask in your own words."
     )
-
-
-def _coverage(current: Application) -> Coverage:
-    return coverage(current.registry, current.search.cached_chunks())
 
 
 def _handle_interaction(
@@ -371,27 +347,19 @@ def _handle_interaction(
     try:
         interaction = json.loads(form.get("payload", [""])[0])
     except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=400, detail="Invalid Slack interaction payload."
-        ) from exc
+        raise HTTPException(status_code=400, detail="Invalid Slack interaction payload.") from exc
     if not isinstance(interaction, dict):
-        raise HTTPException(
-            status_code=400, detail="Invalid Slack interaction payload."
-        )
+        raise HTTPException(status_code=400, detail="Invalid Slack interaction payload.")
     action = current.slack.parse_action(interaction)
     if action is None:
         return JSONResponse({"ok": True})
-    if (
-        action.kind == "followup"
-        and action.channel
-        and action.thread_ts
-        and action.question
-    ):
+    if action.kind == "followup" and action.channel and action.thread_ts and action.question:
         background_tasks.add_task(
             current.slack.process,
             action.channel,
             action.thread_ts,
             action.question,
+            requester_id=action.user_id,
         )
     elif action.kind == "feedback":
         background_tasks.add_task(current.slack.feedback_store.record, action)
@@ -408,9 +376,7 @@ def _handle_event(
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=400, detail="Invalid Slack event payload."
-        ) from exc
+        raise HTTPException(status_code=400, detail="Invalid Slack event payload.") from exc
     if not isinstance(payload, dict):
         raise HTTPException(status_code=400, detail="Invalid Slack event payload.")
     if payload.get("type") == "url_verification":
@@ -437,19 +403,19 @@ def _handle_event(
         thread_ts = event.get("thread_ts") or message_ts
         if not isinstance(thread_ts, str):
             thread_ts = message_ts
-        if is_coverage_request(mention_question(text)):
-            background_tasks.add_task(
-                current.slack.post_coverage, channel, thread_ts, _coverage(current)
-            )
-        else:
-            background_tasks.add_task(current.slack.process, channel, thread_ts, text)
+        requester_id = event.get("user")
+        background_tasks.add_task(
+            current.slack.process,
+            channel,
+            thread_ts,
+            text,
+            requester_id=requester_id if isinstance(requester_id, str) else None,
+        )
     return JSONResponse({"ok": True})
 
 
 @app.post("/slack/events")
-async def slack_events(
-    request: Request, background_tasks: BackgroundTasks
-) -> JSONResponse:
+async def slack_events(request: Request, background_tasks: BackgroundTasks) -> JSONResponse:
     current = application(request)
     if current.slack is None:
         raise HTTPException(status_code=503, detail="Slack integration is not enabled.")
@@ -460,9 +426,7 @@ async def slack_events(
         request.headers.get("X-Slack-Signature"),
     ):
         raise HTTPException(status_code=401, detail="Invalid Slack request signature.")
-    if not request.headers.get("content-type", "").startswith(
-        "application/x-www-form-urlencoded"
-    ):
+    if not request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
         return _handle_event(current, body, background_tasks)
     form = parse_qs(body.decode("utf-8"), keep_blank_values=True)
     if form.get("command", [""])[0]:
@@ -486,4 +450,14 @@ async def unhandled_error(request: Request, error: Exception) -> JSONResponse:
         status_code=500,
         content={"message": "The request could not be completed."},
         headers={"X-Correlation-ID": correlation_id} if correlation_id else None,
+    )
+
+
+@app.exception_handler(KnowledgeBaseUnavailableError)
+async def knowledge_unavailable(
+    request: Request, error: KnowledgeBaseUnavailableError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"message": "The knowledge service is temporarily unavailable."},
     )

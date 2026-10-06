@@ -7,7 +7,7 @@ resource "aws_lb" "application" {
     aws_security_group.alb.id
   ]
 
-  subnets = var.alb_subnet_ids
+  subnets = aws_subnet.public[*].id
 
   enable_deletion_protection = var.alb_deletion_protection_enabled
   idle_timeout               = 60
@@ -26,7 +26,7 @@ resource "aws_lb_target_group" "application" {
   port        = local.container_port
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.this.id
 
   deregistration_delay = 30
 

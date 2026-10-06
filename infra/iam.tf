@@ -28,6 +28,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_managed" {
 }
 
 data "aws_iam_policy_document" "ecs_execution_secrets" {
+  count = local.runtime_secrets_enabled ? 1 : 0
   statement {
     sid    = "ReadApplicationSecret"
     effect = "Allow"
@@ -37,15 +38,16 @@ data "aws_iam_policy_document" "ecs_execution_secrets" {
     ]
 
     resources = [
-      data.aws_secretsmanager_secret.application.arn
+      data.aws_secretsmanager_secret.application[0].arn
     ]
   }
 }
 
 resource "aws_iam_policy" "ecs_execution_secrets" {
+  count       = local.runtime_secrets_enabled ? 1 : 0
   name        = "${local.name_prefix}-execution-secrets-policy"
   description = "Allows ECS to inject Knowledge Intelligence application secrets."
-  policy      = data.aws_iam_policy_document.ecs_execution_secrets.json
+  policy      = data.aws_iam_policy_document.ecs_execution_secrets[0].json
 
   tags = {
     Component = "ecs-execution"
@@ -53,8 +55,9 @@ resource "aws_iam_policy" "ecs_execution_secrets" {
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_execution_secrets" {
+  count      = local.runtime_secrets_enabled ? 1 : 0
   role       = aws_iam_role.ecs_execution.name
-  policy_arn = aws_iam_policy.ecs_execution_secrets.arn
+  policy_arn = aws_iam_policy.ecs_execution_secrets[0].arn
 }
 
 resource "aws_iam_role" "ecs_task" {

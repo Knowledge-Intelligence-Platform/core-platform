@@ -79,11 +79,14 @@ def test_duplicate_follow_ups_collapse() -> None:
     response = IntelligentResponse(
         answer="Onboarding overview.",
         suggested_questions=(
-            "What is KIP Service?", "What is KIP Service?", "Where is the runbook?"
+            "What is KIP Service?",
+            "What is KIP Service?",
+            "Where is the runbook?",
         ),
     )
     assert normalise(response).suggested_questions == (
-        "What is KIP Service?", "Where is the runbook?"
+        "What is KIP Service?",
+        "Where is the runbook?",
     )
 
 

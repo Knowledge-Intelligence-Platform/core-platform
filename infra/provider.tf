@@ -1,10 +1,10 @@
 terraform {
-  required_version = ">= 1.8.0"
+  required_version = ">= 1.9.0"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 6.54, < 7.0"
+      version = ">= 6.58, < 7.0"
     }
   }
 }
@@ -17,6 +17,12 @@ provider "aws" {
   }
 }
 
+provider "aws" {
+  alias               = "bedrock"
+  region              = var.aws_region
+  allowed_account_ids = [var.aws_account_id]
+}
+
 locals {
   name_prefix         = var.name_prefix
   alb_name            = local.name_prefix
@@ -25,7 +31,7 @@ locals {
   ecs_task_family     = local.name_prefix
   container_name      = local.name_prefix
   container_port      = 8000
-  application_secret  = "${local.name_prefix}/application"
+  application_secret  = var.application_secret_name
   cloudwatch_log_name = "/ecs/${local.name_prefix}"
 
   knowledge_s3_prefix = trimsuffix(

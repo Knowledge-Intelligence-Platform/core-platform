@@ -21,28 +21,22 @@ while IFS= read -r address; do
   [[ -z "${address}" ]] && continue
 
   case "${address}" in
-    data.*|*.data.*|aws_s3_*|*.aws_s3_*|aws_s3vectors_*|*.aws_s3vectors_*|aws_secretsmanager_*|*.aws_secretsmanager_*|aws_ecr_*|*.aws_ecr_*)
-      preserved_resources+=("${address}")
-      ;;
-    aws_appconfig_*|*.aws_appconfig_*)
-      preserved_resources+=("${address}")
-      ;;
-    aws_iam_role.appconfig_retrieval*|aws_iam_policy.appconfig_retrieval*|aws_iam_role_policy_attachment.appconfig_retrieval*)
-      preserved_resources+=("${address}")
+    aws_lb.application|*.aws_lb.application|aws_lb_listener.http|*.aws_lb_listener.http|aws_ecs_service.application*|*.aws_ecs_service.application*|aws_nat_gateway.*|*.aws_nat_gateway.*|aws_eip.*|*.aws_eip.*)
+      destroy_targets+=("-target=${address}")
       ;;
     *)
-      destroy_targets+=("-target=${address}")
+      preserved_resources+=("${address}")
       ;;
   esac
 done <<<"${state_addresses}"
 
 if ((${#destroy_targets[@]} == 0)); then
-  echo "No destroyable resources were found in the Terraform state."
+  echo "No idle-cost runtime resources were found in the Terraform state."
   exit 0
 fi
 
-echo "Terraform-managed S3, S3 Vectors, Secrets Manager, ECR, and AppConfig resources"
-echo "intentionally preserved:"
+echo "Resources intentionally preserved because they are network, storage,"
+echo "identity, knowledge, API, logging or other non-idle-runtime resources:"
 if ((${#preserved_resources[@]} == 0)); then
   echo "  - No preservable resources are present in state."
 else
@@ -50,8 +44,8 @@ else
 fi
 echo "  - The existing knowledge S3 bucket (not managed by this Terraform state)."
 echo
-echo "All other managed resources will be destroyed, including ALB, API Gateway,"
-echo "ECS, CloudWatch log groups, security groups, and IAM resources."
+echo "Idle-cost resources selected for destruction: ALB, ECS service/tasks,"
+echo "and any NAT gateways or Elastic IPs present in the Terraform state."
 
 plan_file="$(mktemp "${TMPDIR:-/tmp}/knowledge-intelligence-destroy.XXXXXX.tfplan")"
 trap 'rm -f "${plan_file}"' EXIT
@@ -65,5 +59,5 @@ terraform -chdir="${INFRA_DIR}" plan \
 terraform -chdir="${INFRA_DIR}" apply -input=false "${plan_file}"
 
 echo
-echo "Idle-cost resources destroyed. S3, S3 Vectors, Secrets Manager, ECR, and AppConfig"
-echo "resources were preserved, so the registry keeps its identifiers and deployment history."
+echo "Idle-cost runtime resources destroyed. The Core VPC, public subnets, routing,"
+echo "knowledge content, credentials, container images and supporting resources were preserved."

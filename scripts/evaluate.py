@@ -6,8 +6,8 @@ grounding / refusal scorecard. Deterministic evaluators always run and cost
 nothing beyond the agent calls; `--judge` adds the Strands LLM-as-judge
 faithfulness and refusal evaluators, which make extra model calls.
 
-    python scripts/evaluate.py
-    python scripts/evaluate.py --judge --output evals/reports/platform_knowledge.md
+    python -m scripts.evaluate --datasets /path/to/approved/datasets
+    python -m scripts.evaluate --datasets /path/to/approved/datasets --judge
 """
 
 from __future__ import annotations
@@ -132,9 +132,7 @@ class NoInternalLeakage(Evaluator[str, str]):
                 test_pass=not leaked,
                 label=f"{len(leaked)} leaked" if leaked else "clean",
                 reason=(
-                    f"Leaked internal wording: {', '.join(leaked)}"
-                    if leaked
-                    else "No leakage."
+                    f"Leaked internal wording: {', '.join(leaked)}" if leaked else "No leakage."
                 ),
             )
         ]
@@ -251,15 +249,13 @@ def render_report(report: Any, *, judged: bool) -> str:
         for row in failures:
             reason = str(row.get("reason", "")).replace("|", "/").replace("\n", " ")[:160]
             score = float(row.get("score", 0.0))
-            lines.append(
-                f"| {row.get('name')} | {row.get('evaluator')} | {score:.2f} | {reason} |"
-            )
+            lines.append(f"| {row.get('name')} | {row.get('evaluator')} | {score:.2f} | {reason} |")
     return "\n".join(lines) + "\n"
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--datasets", type=Path, default=REPOSITORY_ROOT / "evals/datasets")
+    parser.add_argument("--datasets", type=Path, required=True)
     parser.add_argument(
         "--output",
         type=Path,
@@ -292,12 +288,12 @@ def main() -> None:
         NoInternalLeakage(name="no-internal-leakage"),
     ]
     if arguments.judge:
-        from strands.models.openai_responses import OpenAIResponsesModel
+        from strands.models import BedrockModel
         from strands_evals.evaluators import FaithfulnessEvaluator, RefusalEvaluator
 
-        judge = OpenAIResponsesModel(
-            model_id=settings.openai_model,
-            client_args={"api_key": settings.openai_api_key.get_secret_value()},
+        judge = BedrockModel(
+            model_id=settings.bedrock_model_id,
+            region_name=settings.aws_region,
         )
         evaluators += [
             FaithfulnessEvaluator(model=judge, name="faithfulness"),

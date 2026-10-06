@@ -1,24 +1,48 @@
-aws_region = "ap-south-1"
+aws_region = "us-east-1"
 
 knowledge_bucket_name = "replace-with-knowledge-bucket"
+application_secret_name = "replace-with-application-secret"
+aws_account_id = "000000000000"
 
-vpc_id = "vpc-0123456789abcdef0"
-alb_subnet_ids = [
-  "subnet-0123456789abcdef0",
-  "subnet-0fedcba9876543210",
+vpc_cidr = "10.42.0.0/16"
+public_subnet_cidrs = [
+  "10.42.0.0/20",
+  "10.42.16.0/20",
+  "10.42.32.0/20",
 ]
-ecs_subnet_ids = [
-  "subnet-0123456789abcdef0",
-  "subnet-0fedcba9876543210",
-]
+
+knowledge_base_name     = "replace-with-knowledge-base-name"
+knowledge_base_id       = "AAAAAAAAAA"
+knowledge_base_role_arn  = "arn:aws:iam::000000000000:role/replace-with-bedrock-role"
+confluence_data_source_name = "replace-with-data-source-name"
+confluence_data_source_id   = "BBBBBBBBBB"
+
+confluence_connector_parameters = <<-JSON
+{"type":"CONFLUENCE","connectionConfiguration":{"hostUrl":"https://replace-with-site.atlassian.net","authType":"BASIC","type":"SAAS","secretArn":"arn:aws:secretsmanager:us-east-1:000000000000:secret:replace-with-confluence-secret"},"aclEnabled":false,"crawlIdentities":false}
+JSON
+
+data_deletion_policy = "DELETE"
+
+sync_deletion_protection = {
+  enabled   = false
+  threshold = 15
+}
+
+media_extraction = {
+  image = true
+  audio = true
+  video = true
+}
+
+tags = null
 
 container_image_tag = "latest"
-openai_model        = "replace-with-approved-model"
+bedrock_model_id    = "amazon.nova-lite-v1:0"
+application_enabled = false
+query_api_enabled = false
 slack_enabled      = false
-github_enabled     = false
 admin_reindex_enabled = false
 vector_bucket_name = "replace-with-vector-bucket"
-visual_analysis_enabled = true
 
 additional_tags = {
   Owner       = "replace-with-owner"

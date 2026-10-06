@@ -9,13 +9,25 @@ variable "name_prefix" {
   }
 }
 
-variable "aws_region" {
-  description = "AWS region where Knowledge Intelligence resources are deployed. S3 Vectors uses ap-south-1."
+variable "application_secret_name" {
+  description = "Secrets Manager secret containing the enabled application credentials."
   type        = string
+  default     = "knowledge-intelligence/application"
 
   validation {
-    condition     = var.aws_region == "ap-south-1"
-    error_message = "aws_region must be ap-south-1 for S3 Vectors."
+    condition     = length(trimspace(var.application_secret_name)) > 0
+    error_message = "application_secret_name cannot be empty."
+  }
+}
+
+variable "aws_region" {
+  description = "AWS region where Knowledge Intelligence resources are deployed."
+  type        = string
+  default     = "us-east-1"
+
+  validation {
+    condition     = var.aws_region == "us-east-1"
+    error_message = "aws_region must be us-east-1."
   }
 }
 
@@ -49,45 +61,27 @@ variable "knowledge_s3_prefix" {
   }
 }
 
-variable "vpc_id" {
-  description = "Existing VPC ID used by the ALB and ECS Fargate service."
+variable "vpc_cidr" {
+  description = "CIDR block for the Core Platform VPC."
   type        = string
 
   validation {
-    condition     = can(regex("^vpc-[0-9a-fA-F]+$", var.vpc_id))
-    error_message = "vpc_id must be a valid VPC ID."
+    condition     = can(cidrnetmask(var.vpc_cidr))
+    error_message = "vpc_cidr must be a valid IPv4 CIDR block."
   }
 }
 
-variable "alb_subnet_ids" {
-  description = "Existing subnet IDs used by the internet-facing Application Load Balancer."
-  type        = set(string)
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for the public subnets used by the ALB and ECS service."
+  type        = list(string)
 
   validation {
     condition = (
-      length(var.alb_subnet_ids) >= 2 &&
-      alltrue([
-        for subnet_id in var.alb_subnet_ids :
-        can(regex("^subnet-[0-9a-fA-F]+$", subnet_id))
-      ])
+      length(var.public_subnet_cidrs) >= 2 &&
+      length(var.public_subnet_cidrs) <= 3 &&
+      alltrue([for cidr in var.public_subnet_cidrs : can(cidrnetmask(cidr))])
     )
-    error_message = "alb_subnet_ids must contain at least two valid subnet IDs."
-  }
-}
-
-variable "ecs_subnet_ids" {
-  description = "Existing private subnet IDs used by ECS Fargate tasks."
-  type        = set(string)
-
-  validation {
-    condition = (
-      length(var.ecs_subnet_ids) >= 2 &&
-      alltrue([
-        for subnet_id in var.ecs_subnet_ids :
-        can(regex("^subnet-[0-9a-fA-F]+$", subnet_id))
-      ])
-    )
-    error_message = "ecs_subnet_ids must contain at least two valid subnet IDs."
+    error_message = "public_subnet_cidrs must contain two or three valid IPv4 CIDR blocks."
   }
 }
 
@@ -177,12 +171,6 @@ variable "ecs_desired_count" {
   }
 }
 
-variable "ecs_assign_public_ip" {
-  description = "Whether demo tasks receive public IPs for outbound API access. Disable when private subnets have NAT or VPC endpoints."
-  type        = bool
-  default     = true
-}
-
 variable "alb_deletion_protection_enabled" {
   description = "Whether deletion protection is enabled for the ALB."
   type        = bool
@@ -234,25 +222,72 @@ variable "permissions_boundary_arn" {
   default     = null
 }
 
-variable "openai_model" {
-  description = "Approved OpenAI model identifier used by the Strands agent."
-  type        = string
+variable "tasks_enabled" {
+  description = "Enable approval-gated knowledge-source tasks through the authenticated API."
+  type        = bool
+  default     = false
 
   validation {
-    condition     = length(trimspace(var.openai_model)) > 0
-    error_message = "openai_model cannot be empty."
+    condition     = !var.tasks_enabled || (var.query_api_enabled && length(var.task_allowed_identities) > 0)
+    error_message = "Tasks require the query API and explicit allowed identities."
   }
 }
 
-variable "max_document_size_mb" {
-  description = "Maximum supported S3 document size in MiB."
-  type        = number
-  default     = 50
+variable "task_allowed_identities" {
+  description = "Query identities allowed to inspect, approve and resume their own sync tasks."
+  type        = set(string)
+  default     = []
+}
+
+variable "task_prefix" {
+  description = "Dedicated S3 prefix for durable task records."
+  type        = string
+  default     = "tasks"
 
   validation {
-    condition     = var.max_document_size_mb >= 1 && var.max_document_size_mb <= 500
-    error_message = "max_document_size_mb must be between 1 and 500."
+    condition     = can(regex("^[A-Za-z0-9][A-Za-z0-9/_-]*$", var.task_prefix))
+    error_message = "Use a non-empty S3 prefix containing letters, digits, slash, underscore or hyphen."
   }
+}
+
+variable "bedrock_prompt_caching_enabled" {
+  description = "Add an explicit cache checkpoint after stable system instructions; requires model support."
+  type        = bool
+  default     = false
+}
+
+variable "bedrock_model_id" {
+  description = "Amazon model invoked by the Strands agent through Bedrock."
+  type        = string
+  default     = "amazon.nova-lite-v1:0"
+
+  validation {
+    condition     = startswith(var.bedrock_model_id, "amazon.")
+    error_message = "bedrock_model_id must identify an Amazon foundation model."
+  }
+}
+
+variable "bedrock_max_tokens" {
+  description = "Maximum generated tokens for each model response."
+  type        = number
+  default     = 4096
+
+  validation {
+    condition     = var.bedrock_max_tokens >= 256 && var.bedrock_max_tokens <= 10000 && floor(var.bedrock_max_tokens) == var.bedrock_max_tokens
+    error_message = "bedrock_max_tokens must be an integer from 256 to 10000."
+  }
+}
+
+variable "application_enabled" {
+  description = "Enable ECS application resources once the runtime deployment is ready."
+  type        = bool
+  default     = false
+}
+
+variable "query_api_enabled" {
+  description = "Inject the QUERY_TOKENS identity mapping from the application secret."
+  type        = bool
+  default     = false
 }
 
 variable "agent_max_search_results" {
@@ -264,12 +299,6 @@ variable "agent_max_search_results" {
     condition     = var.agent_max_search_results >= 1 && var.agent_max_search_results <= 10
     error_message = "agent_max_search_results must be between 1 and 10."
   }
-}
-
-variable "github_enabled" {
-  description = "Whether registry-mapped GitHub README ingestion is enabled."
-  type        = bool
-  default     = false
 }
 
 variable "admin_reindex_enabled" {
@@ -404,64 +433,98 @@ variable "vector_dimensions" {
   }
 }
 
-variable "embedding_model" {
-  description = "OpenAI embedding model used for ingestion and search."
+variable "aws_account_id" {
+  description = "Account authorized to host this deployment."
   type        = string
-  default     = "text-embedding-3-small"
-}
-
-variable "embedding_batch_size" {
-  description = "Number of chunks embedded in each ingestion request."
-  type        = number
-  default     = 16
 
   validation {
-    condition     = var.embedding_batch_size >= 1 && var.embedding_batch_size <= 256
-    error_message = "embedding_batch_size must be between 1 and 256."
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must contain 12 digits."
   }
 }
 
-variable "visual_analysis_enabled" {
-  description = "Whether ingestion uses a vision-capable Strands agent to understand PDF diagrams."
-  type        = bool
-  default     = true
-}
-
-variable "visual_analysis_model" {
-  description = "Optional vision-capable model override; empty uses openai_model."
+variable "knowledge_base_name" {
+  description = "Name of the managed Bedrock knowledge base."
   type        = string
-  default     = ""
 }
 
-variable "visual_render_dpi" {
-  description = "DPI used to render candidate diagram pages."
-  type        = number
-  default     = 144
+variable "knowledge_base_role_arn" {
+  description = "Existing Bedrock execution role ARN; this stack does not manage its policies."
+  type        = string
+}
+
+variable "knowledge_base_id" {
+  description = "Existing knowledge base ID managed by this deployment."
+  type        = string
 
   validation {
-    condition     = var.visual_render_dpi >= 72 && var.visual_render_dpi <= 300
-    error_message = "visual_render_dpi must be between 72 and 300."
+    condition     = can(regex("^[A-Za-z0-9]{10}$", var.knowledge_base_id))
+    error_message = "knowledge_base_id must be a valid Bedrock knowledge base ID."
   }
 }
 
-variable "visual_max_pages_per_document" {
-  description = "Maximum candidate diagram pages analyzed per PDF."
-  type        = number
-  default     = 10
+variable "confluence_data_source_name" {
+  description = "Name of the managed Confluence connector."
+  type        = string
+}
+
+variable "confluence_data_source_id" {
+  description = "Existing Confluence data source ID managed by this deployment."
+  type        = string
 
   validation {
-    condition     = var.visual_max_pages_per_document >= 1 && var.visual_max_pages_per_document <= 100
-    error_message = "visual_max_pages_per_document must be between 1 and 100."
+    condition     = can(regex("^[A-Za-z0-9]{10}$", var.confluence_data_source_id))
+    error_message = "confluence_data_source_id must be a valid Bedrock data source ID."
   }
 }
 
-variable "vector_top_k" {
-  description = "Maximum semantic results considered for each query."
-  type        = number
-  default     = 25
+variable "confluence_connector_parameters" {
+  description = "Confluence connector JSON, including the credentials secret ARN, never secret values."
+  type        = string
 
   validation {
-    condition     = var.vector_top_k >= 1 && var.vector_top_k <= 100
-    error_message = "vector_top_k must be between 1 and 100."
+    condition = try(
+      jsondecode(var.confluence_connector_parameters).type == "CONFLUENCE" &&
+      startswith(
+        jsondecode(var.confluence_connector_parameters).connectionConfiguration.secretArn,
+        "arn:aws:secretsmanager:${var.aws_region}:${var.aws_account_id}:secret:"
+      ),
+      false
+    )
+    error_message = "Provide Confluence connector JSON referencing a secret in the configured account and region."
   }
+}
+
+variable "data_deletion_policy" {
+  description = "Whether Bedrock deletes indexed content if the data source is removed."
+  type        = string
+  default     = "DELETE"
+
+  validation {
+    condition     = contains(["DELETE", "RETAIN"], var.data_deletion_policy)
+    error_message = "data_deletion_policy must be DELETE or RETAIN."
+  }
+}
+
+variable "sync_deletion_protection" {
+  description = "Protection against large deletions during connector syncs."
+  type = object({
+    enabled   = bool
+    threshold = number
+  })
+}
+
+variable "media_extraction" {
+  description = "Media types extracted by the managed connector."
+  type = object({
+    image = bool
+    audio = bool
+    video = bool
+  })
+}
+
+variable "tags" {
+  description = "Knowledge base tags. Match existing tags when importing."
+  type        = map(string)
+  default     = null
 }

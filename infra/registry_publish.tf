@@ -71,16 +71,20 @@ data "aws_iam_policy_document" "registry_publish" {
     }
   }
 
-  statement {
-    sid    = "RestartServiceOntoTheNewRegistry"
-    effect = "Allow"
+  dynamic "statement" {
+    for_each = var.application_enabled ? [1] : []
 
-    actions = [
-      "ecs:UpdateService",
-      "ecs:DescribeServices",
-    ]
+    content {
+      sid    = "RestartServiceOntoTheNewRegistry"
+      effect = "Allow"
 
-    resources = [aws_ecs_service.application.id]
+      actions = [
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+      ]
+
+      resources = [aws_ecs_service.application[0].id]
+    }
   }
 }
 

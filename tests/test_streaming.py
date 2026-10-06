@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, cast
 
+import boto3
 import pytest
+from strands import Agent
+from strands.models import BedrockModel
 
 from app.agent import (
     INSUFFICIENT_ANSWER,
@@ -24,8 +27,9 @@ TRICKY = (
 @pytest.mark.parametrize("ensure_ascii", [True, False])
 @pytest.mark.parametrize("chunk_size", [1, 2, 5, 64, 999])
 def test_answer_is_recovered_from_any_chunking(ensure_ascii: bool, chunk_size: int) -> None:
-    serialized = json.dumps({"answer": TRICKY, "response_type": "onboarding"},
-                            ensure_ascii=ensure_ascii)
+    serialized = json.dumps(
+        {"answer": TRICKY, "response_type": "onboarding"}, ensure_ascii=ensure_ascii
+    )
     partial = PartialAnswer()
     for start in range(0, len(serialized), chunk_size):
         partial.feed(serialized[start : start + chunk_size])
@@ -61,7 +65,12 @@ def test_truncated_escapes_do_not_raise(truncated: str) -> None:
 
 def build_agent(search: StubSearch, **options: Any) -> PlatformKnowledgeAgent:
     return PlatformKnowledgeAgent(
-        api_key="sk-test",
+        model=BedrockModel(
+            model_id="amazon.nova-lite-v1:0",
+            boto_session=boto3.Session(
+                aws_access_key_id="test", aws_secret_access_key="test", region_name="us-east-1"
+            ),
+        ),
         model_id="test-model",
         platform_name="Example Platform",
         search=search,
@@ -69,6 +78,39 @@ def build_agent(search: StubSearch, **options: Any) -> PlatformKnowledgeAgent:
         metrics_enabled=False,
         **options,
     )
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_harness_preserves_grounding_and_explicit_cache_checkpoint(
+    enabled: bool,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    from app.agent import cacheable_system_prompt
+
+    monkeypatch.chdir(tmp_path)
+    wrapper = build_agent(StubSearch(), prompt_caching_enabled=enabled)
+    agent = wrapper._build_agent("cache-test", persist=False)
+    assert agent.model is wrapper.model
+    assert agent.memory_manager is None
+    assert not {
+        "shell",
+        "read",
+        "write",
+        "edit",
+        "web_fetch",
+        "web_search",
+        "subagent",
+    }.intersection(agent.tool_registry.registry)
+    blocks = cacheable_system_prompt(wrapper.instructions, enabled)
+    request = wrapper.model.format_request(
+        messages=[{"role": "user", "content": [{"text": "A new question with fresh passages"}]}],
+        system_prompt_content=blocks if isinstance(blocks, list) else [{"text": blocks}],
+    )
+    assert any("cachePoint" in item for item in request["system"]) is enabled
+    assert all("cachePoint" not in item for item in request["messages"][0]["content"])
+    assert request["modelId"] == "amazon.nova-lite-v1:0"
+    assert not (tmp_path / ".agent").exists()
 
 
 def test_streaming_returns_the_structured_answer(answer_payload: dict[str, Any]) -> None:
@@ -143,3 +185,27 @@ def test_follow_up_turn_carries_the_previous_question(answer_payload: dict[str, 
 )
 def test_session_ids_are_storage_safe(raw: str, expected: str) -> None:
     assert _session_id(raw) == expected
+
+
+def test_conversations_are_partitioned_by_verified_identity() -> None:
+    alice = PlatformKnowledgeAgent._identity_conversation("shared-thread", "alice@example.com")
+    bob = PlatformKnowledgeAgent._identity_conversation("shared-thread", "bob@example.com")
+    assert alice != bob
+    assert alice == PlatformKnowledgeAgent._identity_conversation(
+        "shared-thread", "alice@example.com"
+    )
+    assert "alice" not in str(alice)
+    assert PlatformKnowledgeAgent._identity_conversation(None, "alice@example.com") is None
+
+
+def test_bedrock_tool_events_deliver_progress(answer_payload: dict[str, Any]) -> None:
+    agent = build_agent(StubSearch())
+    conversation = agent._for("nova-stream")
+    conversation.agent = cast(Agent, StubStreamingAgent(answer_payload, tool_events=True))
+    seen: list[str] = []
+    answer = agent.answer_stream(
+        "How do I onboard?", conversation_id="nova-stream", on_partial=seen.append
+    )
+    assert seen
+    assert all(answer_payload["answer"].startswith(partial) for partial in seen)
+    assert answer.answer == answer_payload["answer"]

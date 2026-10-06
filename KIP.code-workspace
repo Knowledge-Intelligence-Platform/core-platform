@@ -3,5 +3,42 @@
     { "name": "Core Platform", "path": "." },
     { "name": "Visual Documentation", "path": "docs" }
   ],
-  "settings": {}
+  "settings": {
+    "python.defaultInterpreterPath": "/opt/anaconda3/envs/kip/bin/python",
+    "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestArgs": ["tests"],
+    "python.analysis.typeCheckingMode": "strict",
+    "[python]": {
+      "editor.defaultFormatter": "charliermarsh.ruff",
+      "editor.formatOnSave": true,
+      "editor.codeActionsOnSave": { "source.organizeImports": "explicit" },
+      "editor.rulers": [100]
+    },
+    "[terraform]": {
+      "editor.defaultFormatter": "hashicorp.terraform",
+      "editor.formatOnSave": true
+    },
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.pytest_cache": true,
+      "**/.mypy_cache": true,
+      "**/.ruff_cache": true,
+      "**/.DS_Store": true,
+      "infra/venv": true,
+      "infra/.terraform": true
+    },
+    "search.exclude": {
+      "infra/venv": true,
+      "infra/.terraform": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.vscode-pylance",
+      "charliermarsh.ruff",
+      "hashicorp.terraform"
+    ]
+  }
 }

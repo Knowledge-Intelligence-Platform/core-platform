@@ -3,6 +3,16 @@ output "aws_region" {
   value       = var.aws_region
 }
 
+output "vpc_id" {
+  description = "VPC created for the Core Platform deployment."
+  value       = aws_vpc.this.id
+}
+
+output "public_subnet_ids" {
+  description = "Public subnet IDs used by the Application Load Balancer."
+  value       = aws_subnet.public[*].id
+}
+
 output "ecr_repository_url" {
   description = "Repository URL used to publish the application container image."
   value       = aws_ecr_repository.application.repository_url
@@ -10,7 +20,7 @@ output "ecr_repository_url" {
 
 output "application_secret_arn" {
   description = "ARN of the application Secrets Manager secret."
-  value       = data.aws_secretsmanager_secret.application.arn
+  value       = try(data.aws_secretsmanager_secret.application[0].arn, null)
 }
 
 output "ecs_execution_role_arn" {
@@ -70,17 +80,17 @@ output "target_group_arn" {
 
 output "ecs_cluster_arn" {
   description = "ARN of the ECS cluster."
-  value       = aws_ecs_cluster.application.arn
+  value       = one(aws_ecs_cluster.application[*].arn)
 }
 
 output "ecs_task_definition_arn" {
   description = "ARN of the deployed ECS task definition revision."
-  value       = aws_ecs_task_definition.application.arn
+  value       = one(aws_ecs_task_definition.application[*].arn)
 }
 
 output "ecs_service_name" {
   description = "Name of the ECS service registered with the ALB target group."
-  value       = aws_ecs_service.application.name
+  value       = one(aws_ecs_service.application[*].name)
 }
 
 output "vector_bucket_name" {
@@ -136,4 +146,15 @@ output "knowledge_bucket_name" {
 output "registry_document_key" {
   description = "Key of the published component registry document."
   value       = "${trim(var.registry_prefix, "/")}/registry.yaml"
+}
+output "knowledge_base_id" {
+  value = aws_bedrockagent_knowledge_base.this.id
+}
+
+output "knowledge_base_data_source_id" {
+  value = aws_bedrockagent_data_source.confluence.data_source_id
+}
+
+output "bedrock_model_id" {
+  value = var.bedrock_model_id
 }

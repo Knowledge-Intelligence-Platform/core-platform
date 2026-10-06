@@ -27,3 +27,4 @@ override.tf.json
 !*.tfvars.example
 !*.hcl.example
 !.terraform.lock.hcl
+.vscode/settings.json

@@ -1,4 +1,4 @@
-"""Shared fakes. Every test runs offline: no AWS, OpenAI, or Slack calls."""
+"""Shared fakes. Every test runs offline: no AWS or Slack calls."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 
 from app.agent import IntelligentResponse
-from app.models import Chunk, SearchResult, SourceType
+from app.models import Chunk, SearchResult
 
 
 @pytest.fixture(autouse=True)
@@ -26,14 +26,12 @@ def make_chunk(chunk_id: str = "c1", text: str = "Raise a cluster request.") -> 
         document_id="d1",
         title="KIP Service onboarding",
         text=text,
-        source_type=SourceType.CONFLUENCE,
         source_location="s3://bucket/key.pdf",
-        component_id="kip-service",
     )
 
 
 class StubSearch:
-    """Hybrid search stand-in that records the queries it was asked for."""
+    """Knowledge search stand-in that records the queries it was asked for."""
 
     def __init__(self, results: int = 1) -> None:
         self.results = results
@@ -51,16 +49,25 @@ class StubSearch:
 class StubStreamingAgent:
     """Mimics a Strands agent: JSON deltas, then a structured-output event."""
 
-    def __init__(self, payload: dict[str, Any], *, emit_structured: bool = True) -> None:
+    def __init__(
+        self, payload: dict[str, Any], *, emit_structured: bool = True, tool_events: bool = False
+    ) -> None:
         self.payload = payload
         self.emit_structured = emit_structured
+        self.tool_events = tool_events
         self.prompts: list[str] = []
 
     async def stream_async(self, prompt: str, **_: Any) -> AsyncIterator[dict[str, Any]]:
         self.prompts.append(prompt)
         serialized = json.dumps(self.payload)
         for start in range(0, len(serialized), 8):
-            yield {"data": serialized[start : start + 8], "delta": {}}
+            if self.tool_events:
+                yield {
+                    "delta": {"toolUse": {"input": serialized[start : start + 8]}},
+                    "current_tool_use": {"name": "IntelligentResponse", "toolUseId": "test-tool"},
+                }
+            else:
+                yield {"data": serialized[start : start + 8], "delta": {}}
         if self.emit_structured:
             yield {"structured_output": IntelligentResponse(**self.payload)}
 

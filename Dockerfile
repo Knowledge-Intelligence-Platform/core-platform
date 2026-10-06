@@ -10,15 +10,11 @@ WORKDIR /app
 RUN groupadd --system app \
     && useradd --system --gid app --home-dir /nonexistent --no-create-home app
 
-RUN apt-get update \
-    && apt-get install --yes --no-install-recommends graphviz fonts-dejavu-core \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt ./
 RUN python -m pip install --requirement requirements.txt
 
 COPY app ./app
-COPY scripts ./scripts
+COPY scripts/__init__.py scripts/ingest.py scripts/validate_search.py ./scripts/
 COPY README.md AGENTS.md ./
 
 USER app

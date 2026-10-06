@@ -15,10 +15,11 @@ packages = ["app"]
 
 [project.optional-dependencies]
 dev = [
-    "boto3-stubs[s3]>=1.42,<2.0",
+    "boto3-stubs[s3,bedrock-runtime,bedrock-agent,bedrock-agent-runtime]>=1.43.77,<2.0",
     "mypy>=1.14,<2.0",
     "ruff>=0.9,<1.0",
     "pytest>=8.3,<10.0",
+    "pyyaml>=6.0,<7.0",
     "types-pyyaml>=6.0,<7.0",
     # Used only by scripts/evaluate.py; deliberately not in requirements.txt so
     # the container image does not ship the evaluation harness.
@@ -41,10 +42,6 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 python_version = "3.14"
 strict = true
 files = ["app", "scripts"]
-
-[[tool.mypy.overrides]]
-module = "graphviz.*"
-ignore_missing_imports = true
 
 # strands_evals ships no py.typed marker, so its symbols are Any to mypy.
 # Scope the relaxation to the evaluation script only; app/ stays fully strict.

@@ -1,7 +1,7 @@
 resource "aws_security_group" "alb" {
   name        = "${local.name_prefix}-alb-sg"
   description = "Controls inbound and outbound traffic for the Knowledge Intelligence ALB."
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.this.id
 
   tags = {
     Name      = "${local.name_prefix}-alb-sg"
@@ -34,7 +34,7 @@ resource "aws_vpc_security_group_ingress_rule" "alb_http_ipv4" {
 resource "aws_security_group" "ecs_tasks" {
   name        = "${local.name_prefix}-ecs-tasks-sg"
   description = "Controls traffic to and from Knowledge Intelligence ECS tasks."
-  vpc_id      = var.vpc_id
+  vpc_id      = aws_vpc.this.id
 
   tags = {
     Name      = "${local.name_prefix}-ecs-tasks-sg"

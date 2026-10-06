@@ -9,6 +9,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 from threading import Lock
 from time import monotonic
@@ -22,19 +23,20 @@ from strands.agent.conversation_manager import (
     SlidingWindowConversationManager,
     SummarizingConversationManager,
 )
-from strands.models.openai_responses import OpenAIResponsesModel
+from strands.models import BedrockModel
 from strands.session.s3_session_manager import S3SessionManager
 from strands.session.session_manager import SessionManager
+from strands.types.content import SystemContentBlock
+from strands_harness import create_harness
 
+from app.knowledge_base import KnowledgeBase
 from app.metrics import AgentMetrics
 from app.models import (
-    UNMAPPED_COMPONENT_ID,
     KnowledgeAnswer,
     MindMap,
     MindMapBranch,
     SearchResult,
 )
-from app.search import HybridSearch
 
 LOGGER = logging.getLogger(__name__)
 INSUFFICIENT_ANSWER = "I don't have enough information to answer that reliably."
@@ -47,8 +49,8 @@ def instructions(platform_name: str) -> str:
 
     Both placeholders are substituted rather than formatted, so a literal brace
     in the instructions cannot break loading the way an f-string once could.
-    The platform is named here and nowhere else in the prompt, so a second
-    tenant needs a registry, not a fork.
+    The platform is named here and nowhere else in the prompt, so each deployment
+    can use its own platform name.
     """
     return (
         INSTRUCTIONS_PATH.read_text(encoding="utf-8")
@@ -76,8 +78,7 @@ the passages, sources, retrieval, or backend implementation to the user.
         Skill(
             name="guided-onboarding",
             description=(
-                "Present supported joining and getting-started guidance as a "
-                "welcoming journey."
+                "Present supported joining and getting-started guidance as a welcoming journey."
             ),
             instructions="\n\n".join(
                 (
@@ -139,6 +140,7 @@ nodes as a diagram; do not describe rendering details to the user.
         ),
     )
 
+
 SOURCE_IDENTIFIER = re.compile(r"\s*(?:\[S\d+])+", re.IGNORECASE)
 # Matches both word orders: "the provided information" and "the information
 # provided". The instructions forbid these openers; this is the safety net.
@@ -172,6 +174,7 @@ class IntelligentResponse(BaseModel):
     visual_center: str = ""
     visual_branches: tuple[IntelligentBranch, ...] = Field(default=(), max_length=6)
     suggested_questions: tuple[str, ...] = Field(default=(), max_length=3)
+
 
 ANSWER_FIELD = re.compile(r'"answer"\s*:\s*"')
 
@@ -309,14 +312,19 @@ class Conversation:
     lock: Lock = field(default_factory=Lock)
 
 
+def cacheable_system_prompt(text: str, enabled: bool) -> str | list[SystemContentBlock]:
+    if not enabled:
+        return text
+    return [{"text": text}, {"cachePoint": {"type": "default"}}]
+
+
 class PlatformKnowledgeAgent:
     def __init__(
         self,
         *,
-        api_key: str,
         model_id: str,
         platform_name: str,
-        search: HybridSearch,
+        search: KnowledgeBase,
         maximum_results: int,
         conversation_window: int = 20,
         metrics_enabled: bool = True,
@@ -328,10 +336,14 @@ class PlatformKnowledgeAgent:
         session_bucket: str | None = None,
         session_prefix: str = "sessions/slack",
         aws_region: str | None = None,
+        max_tokens: int = 4096,
+        prompt_caching_enabled: bool = False,
+        model: BedrockModel | None = None,
     ) -> None:
         self.search = search
         self.platform_name = platform_name
         self.instructions = instructions(platform_name)
+        self.prompt_caching_enabled = prompt_caching_enabled
         self.maximum_results = maximum_results
         self.conversation_window = conversation_window
         self.metrics_enabled = metrics_enabled
@@ -343,9 +355,8 @@ class PlatformKnowledgeAgent:
         self.session_bucket = session_bucket
         self.session_prefix = session_prefix
         self.aws_region = aws_region
-        self.model = OpenAIResponsesModel(
-            model_id=model_id,
-            client_args={"api_key": api_key},
+        self.model = model or BedrockModel(
+            model_id=model_id, region_name=aws_region or "us-east-1", max_tokens=max_tokens
         )
         self._conversations: dict[str, Conversation] = {}
         self._conversations_lock = Lock()
@@ -356,8 +367,9 @@ class PlatformKnowledgeAgent:
         question: str,
         *,
         conversation_id: str | None = None,
+        user_id: str | None = None,
     ) -> KnowledgeAnswer:
-        conversation = self._for(conversation_id)
+        conversation = self._for(self._identity_conversation(conversation_id, user_id))
         with conversation.lock:
             prompt = self._prepare(conversation, question)
             if prompt is None:
@@ -375,6 +387,7 @@ class PlatformKnowledgeAgent:
         question: str,
         *,
         conversation_id: str | None = None,
+        user_id: str | None = None,
         on_partial: Callable[[str], None] | None = None,
     ) -> KnowledgeAnswer:
         """Answer while reporting the answer text as it is generated.
@@ -382,7 +395,7 @@ class PlatformKnowledgeAgent:
         `on_partial` is called at most once per `stream_interval_seconds` with the
         answer so far, so a delivery channel can update a message progressively.
         """
-        conversation = self._for(conversation_id)
+        conversation = self._for(self._identity_conversation(conversation_id, user_id))
         with conversation.lock:
             prompt = self._prepare(conversation, question)
             if prompt is None:
@@ -399,6 +412,7 @@ class PlatformKnowledgeAgent:
         structured: IntelligentResponse | None = None
         emitted_at = 0.0
         emitted = ""
+        structured_tool_id: object = None
         async for event in conversation.agent.stream_async(
             prompt,
             structured_output_model=IntelligentResponse,
@@ -409,6 +423,20 @@ class PlatformKnowledgeAgent:
             if isinstance(output, IntelligentResponse):
                 structured = output
             delta = event.get("data")
+            tool = event.get("current_tool_use")
+            if isinstance(tool, dict):
+                if tool.get("name") != IntelligentResponse.__name__:
+                    continue
+                if tool.get("toolUseId") != structured_tool_id:
+                    structured_tool_id = tool.get("toolUseId")
+                    partial = PartialAnswer()
+                    emitted_at = 0.0
+                    emitted = ""
+                content_delta = event.get("delta")
+                tool_delta = (
+                    content_delta.get("toolUse") if isinstance(content_delta, dict) else None
+                )
+                delta = tool_delta.get("input") if isinstance(tool_delta, dict) else None
             if not isinstance(delta, str) or not delta:
                 continue
             partial.feed(delta)
@@ -453,9 +481,13 @@ class PlatformKnowledgeAgent:
             return self._conversation(conversation_id)
         return self._new_conversation(f"ephemeral:{uuid4()}", persist=False)
 
-    def _new_conversation(
-        self, conversation_id: str, *, persist: bool = True
-    ) -> Conversation:
+    @staticmethod
+    def _identity_conversation(conversation_id: str | None, user_id: str | None) -> str | None:
+        if not conversation_id or not user_id:
+            return conversation_id
+        return sha256(f"{user_id}\n{conversation_id}".encode()).hexdigest()
+
+    def _new_conversation(self, conversation_id: str, *, persist: bool = True) -> Conversation:
         return Conversation(
             agent=self._build_agent(conversation_id, persist=persist),
             updated_at=datetime.now(UTC),
@@ -476,12 +508,21 @@ class PlatformKnowledgeAgent:
             return conversation
 
     def _build_agent(self, conversation_id: str, *, persist: bool = True) -> Agent:
-        agent = Agent(
+        agent = create_harness(
+            builtin_tools=[],
+            builtin_plugins=[],
+            background_tasks=False,
+            session=False,
+            skills=False,
+            memory=False,
+            caching=False,
+            context_manager=False,
             model=self.model,
-            system_prompt=self.instructions,
+            system_prompt=cacheable_system_prompt(self.instructions, self.prompt_caching_enabled),
             plugins=[AgentSkills(skills=list(_presentation_skills()), strict=True)],
             conversation_manager=self._conversation_manager(),
             session_manager=self._session_manager(conversation_id) if persist else None,
+            callback_handler=None,
         )
         if self.metrics_enabled:
             AgentMetrics(conversation_id=conversation_id).register(agent)
@@ -533,9 +574,7 @@ class PlatformKnowledgeAgent:
             )
         if previous_question is None:
             return normalized
-        return (
-            f"{normalized}\nPrevious question in this conversation: {previous_question}"
-        )
+        return f"{normalized}\nPrevious question in this conversation: {previous_question}"
 
     @staticmethod
     def _grounded_prompt(
@@ -547,11 +586,6 @@ class PlatformKnowledgeAgent:
                 "source_id": result.source_id,
                 "title": result.chunk.title,
                 "location": result.citation,
-                **(
-                    {}
-                    if result.chunk.component_id == UNMAPPED_COMPONENT_ID
-                    else {"component_id": result.chunk.component_id}
-                ),
                 "text": result.chunk.text,
             }
             for result in results
@@ -576,9 +610,7 @@ class PlatformKnowledgeAgent:
         if not answer or is_refusal(answer):
             return KnowledgeAnswer(answer=INSUFFICIENT_ANSWER)
         nodes = _diagram_nodes(response.visual_nodes)
-        mindmap = (
-            None if nodes else _mindmap(response.visual_center, response.visual_branches)
-        )
+        mindmap = None if nodes else _mindmap(response.visual_center, response.visual_branches)
         return KnowledgeAnswer(
             answer=answer,
             visual="\n↓\n".join(nodes) if nodes else None,
