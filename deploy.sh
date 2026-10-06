@@ -2,62 +2,14 @@
 
 set -Eeuo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly INFRA_DIR="${SCRIPT_DIR}/infra"
-readonly BACKEND_CONFIG_INPUT="${BACKEND_CONFIG:-backend.hcl}"
-readonly TFVARS_FILE_INPUT="${TFVARS_FILE:-terraform.tfvars}"
-readonly BACKEND_CONFIG="$(
-  [[ "${BACKEND_CONFIG_INPUT}" = /* ]] \
-    && printf '%s' "${BACKEND_CONFIG_INPUT}" \
-    || printf '%s/%s' "${INFRA_DIR}" "${BACKEND_CONFIG_INPUT}"
-)"
-readonly TFVARS_FILE="$(
-  [[ "${TFVARS_FILE_INPUT}" = /* ]] \
-    && printf '%s' "${TFVARS_FILE_INPUT}" \
-    || printf '%s/%s' "${INFRA_DIR}" "${TFVARS_FILE_INPUT}"
-)"
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/scripts/terraform.sh"
 
-export TF_IN_AUTOMATION=true
-
-on_error() {
-  local exit_code=$?
-  echo "Deployment failed at line ${BASH_LINENO[0]}." >&2
-  exit "${exit_code}"
-}
-trap on_error ERR
-
-for command in aws docker terraform; do
-  if ! command -v "${command}" >/dev/null 2>&1; then
-    echo "Required command not found: ${command}" >&2
-    exit 1
-  fi
-done
-
-if [[ ! -f "${BACKEND_CONFIG}" ]]; then
-  echo "Terraform backend configuration not found: ${BACKEND_CONFIG}" >&2
-  exit 1
-fi
-
-if [[ ! -f "${TFVARS_FILE}" ]]; then
-  echo "Terraform variable file not found: ${TFVARS_FILE}" >&2
-  exit 1
-fi
+require_commands aws docker terraform
+require_terraform_inputs
 
 echo "Checking AWS credentials and Docker."
-aws sts get-caller-identity >/dev/null
+require_aws_identity
 docker info >/dev/null
-
-tfvar_of() {
-  sed -n "s/^[[:space:]]*${1}[[:space:]]*=[[:space:]]*\"\([^\"]*\)\".*/\1/p" "${TFVARS_FILE}" | head -1
-}
-
-tfflag_of() {
-  sed -n "s/^[[:space:]]*${1}[[:space:]]*=[[:space:]]*\([a-z]*\).*/\1/p" "${TFVARS_FILE}" | head -1
-}
-
-has_tfvar() {
-  grep -Eq "^[[:space:]]*${1}[[:space:]]*=" "${TFVARS_FILE}"
-}
 
 if [[ "$(tfflag_of application_enabled)" != "true" ]]; then
   echo "Set application_enabled=true to deploy the Core Platform application." >&2
@@ -114,37 +66,22 @@ if [[ ${#required_secret_keys[@]} -gt 0 ]]; then
   unset SECRET_JSON
 fi
 
-echo "Initialising Terraform."
-terraform -chdir="${INFRA_DIR}" init \
-  -input=false \
-  -reconfigure \
-  -backend-config="${BACKEND_CONFIG}"
+terraform_init
 
-echo "Deploying infrastructure."
-terraform -chdir="${INFRA_DIR}" apply \
-  -input=false \
-  -auto-approve \
-  -var-file="${TFVARS_FILE}"
+echo "Planning infrastructure changes."
+apply_reviewed_plan
 
-AWS_REGION="$(
-  terraform -chdir="${INFRA_DIR}" output -raw aws_region
-)"
+AWS_REGION="$(terraform_output aws_region)"
 export AWS_REGION
 
-VPC_ID="$(terraform -chdir="${INFRA_DIR}" output -raw vpc_id)"
-PUBLIC_SUBNET_IDS="$(terraform -chdir="${INFRA_DIR}" output -json public_subnet_ids)"
-echo "Core VPC: ${VPC_ID}"
-echo "Public subnets: ${PUBLIC_SUBNET_IDS}"
+echo "Core VPC: $(terraform_output vpc_id)"
+echo "Public subnets: $(terraform -chdir="${INFRA_DIR}" output -json public_subnet_ids)"
 
 echo "Building and pushing the latest container image."
-"${SCRIPT_DIR}/build.sh"
+"${ROOT_DIR}/build.sh"
 
-ECS_CLUSTER_ARN="$(
-  terraform -chdir="${INFRA_DIR}" output -raw ecs_cluster_arn
-)"
-ECS_SERVICE_NAME="$(
-  terraform -chdir="${INFRA_DIR}" output -raw ecs_service_name
-)"
+ECS_CLUSTER_ARN="$(terraform_output ecs_cluster_arn)"
+ECS_SERVICE_NAME="$(terraform_output ecs_service_name)"
 
 echo "Starting a fresh ECS deployment for the latest image."
 aws ecs update-service \
@@ -160,9 +97,6 @@ aws ecs wait services-stable \
   --cluster "${ECS_CLUSTER_ARN}" \
   --services "${ECS_SERVICE_NAME}"
 
-API_URL="$(terraform -chdir="${INFRA_DIR}" output -raw api_gateway_url)"
-SLACK_URL="$(terraform -chdir="${INFRA_DIR}" output -raw slack_events_url)"
-
 echo "Deployment completed."
-echo "API URL: ${API_URL}"
-echo "Slack events URL: ${SLACK_URL}"
+echo "API URL: $(terraform_output api_gateway_url)"
+echo "Slack events URL: $(terraform_output slack_events_url)"

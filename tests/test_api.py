@@ -23,6 +23,7 @@ from app.tasks import KnowledgeTasks, TaskError, TaskStore
 
 ADMIN_TOKEN = "s3cret-admin-token"
 FORM = {"content-type": "application/x-www-form-urlencoded"}
+APPROVER = {"Authorization": "Bearer approver-token"}
 
 
 class Recorder:
@@ -385,6 +386,7 @@ def task_service(client: TestClient) -> tuple[KnowledgeTasks, TaskKnowledgeBase,
             bucket="test-tasks", prefix="tasks", region="us-east-1", client=cast(Any, storage)
         ),
         region="us-east-1",
+        approvers=frozenset({"approver@example.com"}),
     )
     main.app.state.application.settings = Settings(
         _env_file=None,
@@ -396,8 +398,10 @@ def task_service(client: TestClient) -> tuple[KnowledgeTasks, TaskKnowledgeBase,
             "reader@example.com": "reader-token",
             "other@example.com": "other-token",
             "viewer@example.com": "viewer-token",
+            "approver@example.com": "approver-token",
         },
         task_allowed_identities={"reader@example.com", "other@example.com"},
+        task_approver_identities={"approver@example.com"},
     )
     main.app.state.application.tasks = tasks
     return tasks, backend, storage
@@ -411,11 +415,14 @@ def test_sync_task_requires_explicit_approval(client: TestClient, task_service) 
     assert proposal.json()["status"] == "awaiting_approval"
     assert client.post(f"/tasks/{task_id}/resume").status_code == 409
     assert backend.tokens == []
-    decision = client.post(f"/tasks/{task_id}/decision", json={"decision": "approve"})
+    decision = client.post(
+        f"/tasks/{task_id}/decision", headers=APPROVER, json={"decision": "approve"}
+    )
     assert decision.json()["status"] == "approved"
     assert backend.tokens == []
     started = client.post(f"/tasks/{task_id}/resume")
     assert started.json()["status"] == "running"
+    assert decision.json()["decided_by"] == "approver@example.com"
     completed = client.post(f"/tasks/{task_id}/resume")
     assert completed.json()["status"] == "complete"
     assert client.post(f"/tasks/{task_id}/resume").json()["status"] == "complete"
@@ -450,10 +457,13 @@ def test_task_owner_is_enforced(client: TestClient, task_service) -> None:
 def test_rejected_task_never_starts(client: TestClient, task_service) -> None:
     task_id = str(uuid4())
     client.post(f"/tasks/sync/{task_id}")
-    client.post(f"/tasks/{task_id}/decision", json={"decision": "reject"})
+    client.post(f"/tasks/{task_id}/decision", headers=APPROVER, json={"decision": "reject"})
     assert client.post(f"/tasks/{task_id}/resume").json()["status"] == "rejected"
     assert (
-        client.post(f"/tasks/{task_id}/decision", json={"decision": "approve"}).status_code == 409
+        client.post(
+            f"/tasks/{task_id}/decision", headers=APPROVER, json={"decision": "approve"}
+        ).status_code
+        == 409
     )
     assert task_service[1].tokens == []
 
@@ -472,16 +482,17 @@ def test_expired_approval_cannot_start(client: TestClient, task_service, approve
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
     if approved:
-        tasks.decide("reader@example.com", task_id, "approve")
-    record, etag = tasks.store.load("reader@example.com", task_id)
+        tasks.decide("approver@example.com", task_id, "approve")
+    record, etag = tasks.store.load(task_id)
     tasks.store.save(
-        "reader@example.com",
         record.model_copy(update={"expires_at": datetime.now(UTC) - timedelta(seconds=1)}),
         etag,
     )
     if not approved:
         assert (
-            client.post(f"/tasks/{task_id}/decision", json={"decision": "approve"}).status_code
+            client.post(
+                f"/tasks/{task_id}/decision", headers=APPROVER, json={"decision": "approve"}
+            ).status_code
             == 409
         )
     assert client.post(f"/tasks/{task_id}/resume").status_code == 409
@@ -492,7 +503,7 @@ def test_uncertain_start_reuses_token_after_restart(client: TestClient, task_ser
     tasks, backend, _ = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
+    tasks.decide("approver@example.com", task_id, "approve")
     backend.fail_next_start = True
     assert client.post(f"/tasks/{task_id}/resume").status_code == 503
     assert tasks.get("reader@example.com", task_id).status == "starting"
@@ -500,6 +511,7 @@ def test_uncertain_start_reuses_token_after_restart(client: TestClient, task_ser
         knowledge_base=cast(Any, backend),
         store=tasks.store,
         region="us-east-1",
+        approvers=tasks.approvers,
     )
     assert restarted.resume("reader@example.com", task_id).status == "running"
     assert len(backend.tokens) == 2
@@ -511,7 +523,7 @@ def test_state_is_persisted_before_aws_start(client: TestClient, task_service) -
     tasks, backend, storage = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
+    tasks.decide("approver@example.com", task_id, "approve")
     storage.fail_next_write = True
     assert client.post(f"/tasks/{task_id}/resume").status_code == 503
     assert backend.tokens == []
@@ -521,12 +533,10 @@ def test_concurrent_decision_cannot_overwrite_state(task_service) -> None:
     tasks, _, _ = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    stale, etag = tasks.store.load("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "reject")
+    stale, etag = tasks.store.load(task_id)
+    tasks.decide("approver@example.com", task_id, "reject")
     with pytest.raises(TaskError, match="concurrently"):
-        tasks.store.save(
-            "reader@example.com", stale.model_copy(update={"status": "approved"}), etag
-        )
+        tasks.store.save(stale.model_copy(update={"status": "approved"}), etag)
     assert tasks.get("reader@example.com", task_id).status == "rejected"
 
 
@@ -534,7 +544,7 @@ def test_changed_target_invalidates_approval(task_service) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
+    tasks.decide("approver@example.com", task_id, "approve")
     backend.data_source_id = "UVWXYZ1234"
     with pytest.raises(TaskError, match="target"):
         tasks.resume("reader@example.com", task_id)
@@ -554,7 +564,7 @@ def test_sync_completion_reflects_aws(task_service, status, expected) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
+    tasks.decide("approver@example.com", task_id, "approve")
     tasks.resume("reader@example.com", task_id)
     backend.job_status = status
     assert tasks.resume("reader@example.com", task_id).status == expected
@@ -569,7 +579,7 @@ def test_record_failure_after_start_keeps_recovery_token(task_service, monkeypat
     tasks, backend, storage = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
+    tasks.decide("approver@example.com", task_id, "approve")
     original = backend.run
 
     def start_then_lose_storage(*, client_token=None):
@@ -590,10 +600,9 @@ def test_old_uncertain_start_requires_reconciliation(task_service) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
-    record, etag = tasks.store.load("reader@example.com", task_id)
+    tasks.decide("approver@example.com", task_id, "approve")
+    record, etag = tasks.store.load(task_id)
     tasks.store.save(
-        "reader@example.com",
         record.model_copy(
             update={
                 "status": "starting",
@@ -611,7 +620,7 @@ def test_operator_revocation_blocks_existing_task(client: TestClient, task_servi
     tasks, backend, _ = task_service
     task_id = uuid4()
     tasks.propose("reader@example.com", task_id)
-    tasks.decide("reader@example.com", task_id, "approve")
+    tasks.decide("approver@example.com", task_id, "approve")
     main.app.state.application.settings.task_allowed_identities = {"other@example.com"}
     assert client.post(f"/tasks/{task_id}/resume").status_code == 403
     assert backend.tokens == []
@@ -620,3 +629,40 @@ def test_operator_revocation_blocks_existing_task(client: TestClient, task_servi
 def test_enabled_tasks_require_explicit_operators() -> None:
     with pytest.raises(ValueError, match="Tasks require"):
         Settings(_env_file=None, knowledge_base_id="ABCDEFGHIJ", tasks_enabled=True)
+
+
+def test_requester_cannot_approve_their_own_task(client: TestClient, task_service) -> None:
+    tasks, backend, _ = task_service
+    task_id = uuid4()
+    client.post(f"/tasks/sync/{task_id}")
+    decision = client.post(f"/tasks/{task_id}/decision", json={"decision": "approve"})
+    assert decision.status_code == 403
+    assert tasks.get("reader@example.com", task_id).status == "awaiting_approval"
+    assert backend.tokens == []
+
+
+def test_approver_cannot_request_tasks(client: TestClient, task_service) -> None:
+    assert client.post(f"/tasks/sync/{uuid4()}", headers=APPROVER).status_code == 403
+
+
+def test_task_id_cannot_be_claimed_by_another_requester(client: TestClient, task_service) -> None:
+    task_id = uuid4()
+    client.post(f"/tasks/sync/{task_id}")
+    claimed = client.post(f"/tasks/sync/{task_id}", headers={"Authorization": "Bearer other-token"})
+    assert claimed.status_code == 409
+    assert task_service[0].get("reader@example.com", task_id).requester == "reader@example.com"
+
+
+@pytest.mark.parametrize("approvers", [set(), {"reader@example.com"}, {"unknown@example.com"}])
+def test_enabled_tasks_require_an_independent_approver(approvers: set[str]) -> None:
+    with pytest.raises(ValueError, match="approver"):
+        Settings(
+            _env_file=None,
+            knowledge_base_id="ABCDEFGHIJ",
+            knowledge_base_data_source_id="KLMNOPQRST",
+            s3_bucket="test-tasks",
+            tasks_enabled=True,
+            query_tokens={"reader@example.com": "reader-token"},
+            task_allowed_identities={"reader@example.com"},
+            task_approver_identities=approvers,
+        )

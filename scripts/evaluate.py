@@ -116,8 +116,6 @@ class NoInternalLeakage(Evaluator[str, str]):
         "[s3]",
         "retrieval",
         "the passages",
-        "the registry lists",
-        "the registry shows",
         "the documentation says",
         "based on the information provided",
         "indexed",

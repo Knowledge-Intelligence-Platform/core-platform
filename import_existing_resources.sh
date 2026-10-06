@@ -33,8 +33,6 @@ AWS_ACCOUNT_ID="$(tfvar_of aws_account_id)"
 AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query Account --output text)}"
 NAME_PREFIX="$(tfvar_of name_prefix)"
 NAME_PREFIX="${NAME_PREFIX:-knowledge-intelligence}"
-VECTOR_BUCKET_NAME="$(tfvar_of vector_bucket_name)"
-VECTOR_BUCKET_NAME="${VECTOR_BUCKET_NAME:-knowledge-intelligence-vectors}"
 
 terraform -chdir="${INFRA_DIR}" init \
   -input=false \
@@ -97,13 +95,11 @@ if [[ -n "${AWS_REGION}" && -n "${AWS_ACCOUNT_ID}" ]]; then
 
   for role_name in \
     "${NAME_PREFIX}-execution-role" \
-    "${NAME_PREFIX}-task-role" \
-    "${NAME_PREFIX}-vector-ingestion-role"; do
+    "${NAME_PREFIX}-task-role"; do
     if aws iam get-role --role-name "${role_name}" >/dev/null 2>&1; then
       case "${role_name}" in
         "${NAME_PREFIX}-execution-role") import_if_missing aws_iam_role.ecs_execution "${role_name}" ;;
-        "${NAME_PREFIX}-task-role") import_if_missing aws_iam_role.ecs_task "${role_name}" ;;
-        *) import_if_missing aws_iam_role.vector_ingestion "${role_name}" ;;
+        *) import_if_missing aws_iam_role.ecs_task "${role_name}" ;;
       esac
     fi
   done
@@ -111,19 +107,13 @@ if [[ -n "${AWS_REGION}" && -n "${AWS_ACCOUNT_ID}" ]]; then
   for policy_name in \
     "${NAME_PREFIX}-bedrock-runtime-policy" \
     "${NAME_PREFIX}-execution-secrets-policy" \
-    "${NAME_PREFIX}-knowledge-bucket-read-policy" \
-    "${NAME_PREFIX}-feedback-write-policy" \
-    "${NAME_PREFIX}-vector-runtime-policy" \
-    "${NAME_PREFIX}-vector-ingestion-policy"; do
+    "${NAME_PREFIX}-feedback-write-policy"; do
     policy_arn="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${policy_name}"
     if aws iam get-policy --policy-arn "${policy_arn}" >/dev/null 2>&1; then
       case "${policy_name}" in
         "${NAME_PREFIX}-bedrock-runtime-policy") import_if_missing aws_iam_policy.bedrock_runtime "${policy_arn}" ;;
         "${NAME_PREFIX}-execution-secrets-policy") import_if_missing 'aws_iam_policy.ecs_execution_secrets[0]' "${policy_arn}" ;;
-        "${NAME_PREFIX}-knowledge-bucket-read-policy") import_if_missing aws_iam_policy.knowledge_bucket_read "${policy_arn}" ;;
-        "${NAME_PREFIX}-feedback-write-policy") import_if_missing aws_iam_policy.feedback_write "${policy_arn}" ;;
-        "${NAME_PREFIX}-vector-runtime-policy") import_if_missing aws_iam_policy.vector_runtime "${policy_arn}" ;;
-        *) import_if_missing aws_iam_policy.vector_ingestion "${policy_arn}" ;;
+        *) import_if_missing aws_iam_policy.feedback_write "${policy_arn}" ;;
       esac
     fi
   done
@@ -133,20 +123,6 @@ if [[ -n "${AWS_REGION}" && -n "${AWS_ACCOUNT_ID}" ]]; then
     --repository-names "${NAME_PREFIX}" >/dev/null 2>&1; then
     import_if_missing aws_ecr_repository.application "${NAME_PREFIX}"
     import_if_missing aws_ecr_lifecycle_policy.application "${NAME_PREFIX}"
-  fi
-
-  VECTOR_BUCKET_ARN="arn:aws:s3vectors:${AWS_REGION}:${AWS_ACCOUNT_ID}:bucket/${VECTOR_BUCKET_NAME}"
-  if aws s3vectors get-vector-bucket \
-    --region "${AWS_REGION}" \
-    --vector-bucket-name "${VECTOR_BUCKET_NAME}" >/dev/null 2>&1; then
-    import_if_missing aws_s3vectors_vector_bucket.platform_knowledge "${VECTOR_BUCKET_ARN}"
-
-    if aws s3vectors get-index \
-      --region "${AWS_REGION}" \
-      --vector-bucket-name "${VECTOR_BUCKET_NAME}" \
-      --index-name platform-knowledge >/dev/null 2>&1; then
-      import_if_missing aws_s3vectors_index.platform_knowledge "${VECTOR_BUCKET_ARN}/index/platform-knowledge"
-    fi
   fi
 fi
 

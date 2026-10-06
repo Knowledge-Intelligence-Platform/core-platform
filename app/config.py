@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     bedrock_prompt_caching_enabled: bool = False
     tasks_enabled: bool = False
     task_allowed_identities: set[str] = Field(default_factory=set)
+    task_approver_identities: set[str] = Field(default_factory=set)
     task_prefix: str = Field(default="tasks", pattern=r"^[A-Za-z0-9][A-Za-z0-9/_-]*$")
     query_tokens: dict[str, SecretStr] = Field(default_factory=dict)
     s3_bucket: str = ""
@@ -63,6 +64,17 @@ class Settings(BaseSettings):
             or not self.task_allowed_identities.issubset(self.query_tokens)
         ):
             raise ValueError("Tasks require S3, a data source, and allowed query identities.")
+        if self.tasks_enabled and (
+            not self.task_approver_identities.issubset(self.query_tokens)
+            or any(
+                not self.task_approver_identities - {requester}
+                for requester in self.task_allowed_identities
+            )
+        ):
+            raise ValueError(
+                "Tasks require approver query identities, with an approver other than each "
+                "requester."
+            )
         if self.admin_token.get_secret_value() and not self.knowledge_base_data_source_id:
             raise ValueError("KNOWLEDGE_BASE_DATA_SOURCE_ID is required for administrative sync.")
         if any(

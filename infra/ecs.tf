@@ -95,6 +95,7 @@ resource "aws_ecs_task_definition" "application" {
         { name = "KNOWLEDGE_INTELLIGENCE_BEDROCK_PROMPT_CACHING_ENABLED", value = tostring(var.bedrock_prompt_caching_enabled) },
         { name = "KNOWLEDGE_INTELLIGENCE_TASKS_ENABLED", value = tostring(var.tasks_enabled) },
         { name = "KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES", value = jsonencode(var.task_allowed_identities) },
+        { name = "KNOWLEDGE_INTELLIGENCE_TASK_APPROVER_IDENTITIES", value = jsonencode(var.task_approver_identities) },
         { name = "KNOWLEDGE_INTELLIGENCE_TASK_PREFIX", value = var.task_prefix },
         { name = "KNOWLEDGE_INTELLIGENCE_S3_BUCKET", value = var.knowledge_bucket_name },
         { name = "KNOWLEDGE_INTELLIGENCE_AGENT_MAX_SEARCH_RESULTS", value = tostring(var.agent_max_search_results) },

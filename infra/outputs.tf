@@ -33,11 +33,6 @@ output "ecs_task_role_arn" {
   value       = aws_iam_role.ecs_task.arn
 }
 
-output "vector_ingestion_role_arn" {
-  value       = aws_iam_role.vector_ingestion.arn
-  description = "Role for the explicit vector ingestion command."
-}
-
 output "cloudwatch_log_group_name" {
   description = "CloudWatch Logs group used by the application container."
   value       = aws_cloudwatch_log_group.application.name
@@ -93,60 +88,11 @@ output "ecs_service_name" {
   value       = one(aws_ecs_service.application[*].name)
 }
 
-output "vector_bucket_name" {
-  value       = aws_s3vectors_vector_bucket.platform_knowledge.vector_bucket_name
-  description = "Name of the S3 Vector bucket."
-}
-
-output "vector_bucket_arn" {
-  value       = aws_s3vectors_vector_bucket.platform_knowledge.vector_bucket_arn
-  description = "ARN of the S3 Vector bucket."
-}
-
-output "vector_index_name" {
-  value       = aws_s3vectors_index.platform_knowledge.index_name
-  description = "Name of the platform knowledge vector index."
-}
-
-output "vector_index_arn" {
-  value       = aws_s3vectors_index.platform_knowledge.index_arn
-  description = "ARN of the platform knowledge vector index."
-}
-
-output "registry_appconfig_application_id" {
-  description = "AppConfig application id for the component registry."
-  value       = var.registry_appconfig_enabled ? aws_appconfig_application.registry[0].id : ""
-}
-
-output "registry_appconfig_environment_id" {
-  description = "AppConfig environment id for the component registry."
-  value       = var.registry_appconfig_enabled ? aws_appconfig_environment.registry[0].environment_id : ""
-}
-
-output "registry_appconfig_profile_id" {
-  description = "AppConfig configuration profile id for the component registry."
-  value       = var.registry_appconfig_enabled ? aws_appconfig_configuration_profile.registry[0].configuration_profile_id : ""
-}
-
-output "registry_appconfig_strategy_id" {
-  description = "AppConfig deployment strategy id for the component registry."
-  value       = var.registry_appconfig_enabled ? aws_appconfig_deployment_strategy.registry[0].id : ""
-}
-
-output "registry_publish_role_arn" {
-  description = "Role the component registry repository assumes to publish and deploy."
-  value       = var.registry_publish_enabled ? aws_iam_role.registry_publish[0].arn : ""
-}
-
 output "knowledge_bucket_name" {
-  description = "Bucket holding the Confluence sources, chunks, diagrams and published registry."
+  description = "Bucket holding feedback and task records."
   value       = var.knowledge_bucket_name
 }
 
-output "registry_document_key" {
-  description = "Key of the published component registry document."
-  value       = "${trim(var.registry_prefix, "/")}/registry.yaml"
-}
 output "knowledge_base_id" {
   value = aws_bedrockagent_knowledge_base.this.id
 }

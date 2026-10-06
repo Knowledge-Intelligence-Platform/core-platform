@@ -54,6 +54,8 @@ Complete before Phase 3 starts:
 
 ### Phase 3A: Legacy infrastructure retirement
 
+**Status:** definitions removed in October 2026, ahead of the Phase 3 start. The resources are destroyed by the next reviewed deployment.
+
 Remove infrastructure that belongs to the previous custom-index design before it becomes part of a published module interface.
 
 Deliverables:

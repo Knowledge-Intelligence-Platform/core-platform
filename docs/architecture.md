@@ -48,15 +48,15 @@ Readiness checks KB availability. S3 supports optional feedback and persisted
 conversations. Authentication is still an application responsibility.
 
 Old application-side parsing, registry loading, embeddings, hybrid search and vector
-storage modules have been removed. Terraform definitions for existing S3 Vectors
-and registry resources remain to preserve state ownership. Removing those resources
-requires a separate reviewed retirement plan; code cleanup does not delete them.
+storage modules have been removed, together with their Terraform definitions for the
+S3 Vectors bucket and index, component registry, AppConfig and their IAM roles and
+policies. A redesigned registry is future work.
 
 ## Preserved visual documentation
 
 ![Previous custom-index architecture](architecture.svg)
 
-The [PNG export](architecture.png), registry diagram and graphics in visuals/ are
+The [PNG export](architecture.png) and graphics in visuals/ are
 preserved historical assets. They describe the previous custom-index design.
 The runtime description above supersedes their OpenAI, custom embedding and
 S3 Vectors connections.

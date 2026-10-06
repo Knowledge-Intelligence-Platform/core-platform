@@ -12,7 +12,7 @@ flow and currently available through FastAPI and Swagger, not Slack.
 
 - Inspect the configured source and its latest ingestion job.
 - Prepare a sync proposal through an explicit operational request, showing the region, knowledge base, source and effect.
-- Record an explicit approval or rejection from the task owner.
+- Record an explicit approval or rejection from a configured approver who is not the requester.
 - Start the approved sync and save the AWS ingestion job reference.
 - Resume tracking across requests or application restarts.
 
@@ -27,14 +27,15 @@ Configure the existing region, KB ID, data-source ID and S3 bucket. Then configu
 | Setting | Meaning |
 | --- | --- |
 | KNOWLEDGE_INTELLIGENCE_TASKS_ENABLED | Set to true to expose task operations. Defaults to false. |
-| KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES | JSON list of operator identities already present in QUERY_TOKENS. |
+| KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES | JSON list of requester identities already present in QUERY_TOKENS. |
+| KNOWLEDGE_INTELLIGENCE_TASK_APPROVER_IDENTITIES | JSON list of approver identities already present in QUERY_TOKENS. Each requester needs at least one approver other than themselves. |
 | KNOWLEDGE_INTELLIGENCE_TASK_PREFIX | Dedicated task-record prefix in the configured S3 bucket. Defaults to tasks. |
 
 For example, allow `operator@example.com` only after assigning it a unique bearer
 token in the server-controlled query-token mapping. Do not put tokens in this page.
 Having permission to ask knowledge questions does not grant permission to run tasks.
 
-For ECS deployments, set `tasks_enabled`, `task_allowed_identities` and `task_prefix`
+For ECS deployments, set `tasks_enabled`, `task_allowed_identities`, `task_approver_identities` and `task_prefix`
 through deployment inputs. Core Platform's existing Terraform root wires these
 settings and grants the task role scoped source-inspection, ingestion and S3 access.
 Review the full plan separately before deploying; enabling the feature in code does
@@ -48,16 +49,18 @@ Restrict write access to task records because those records contain approval sta
 
 ## Try it through Swagger
 
-Open `/docs` and use **Authorize** with the operator's bearer token. Choose the
+Open `/docs` and use **Authorize** with the requester's bearer token. Choose the
 **Knowledge tasks** endpoints.
 
 1. Call `GET /tasks/source` to inspect the current source and latest job. This does
    not start a sync. An available source does not establish that its content is fresh.
 2. Generate a new task UUID and call `POST /tasks/sync/{task_id}`.
 3. Review the returned `task`: its exact target, effect, status and expiry.
-4. Call `POST /tasks/{task_id}/decision` with `{"decision":"approve"}` or
-   `{"decision":"reject"}`. Approval records a decision but does not start ingestion.
-5. After approval, call `POST /tasks/{task_id}/resume` to start the sync.
+4. Authorize with an approver's bearer token and call `POST /tasks/{task_id}/decision`
+   with `{"decision":"approve"}` or `{"decision":"reject"}`. Approval records the
+   decision and the approver but does not start ingestion.
+5. After approval, the requester or an approver calls `POST /tasks/{task_id}/resume`
+   to start the sync.
 6. Call the same resume endpoint periodically to refresh AWS job status. A running
    response is not completion. Terminal results are complete, failed or stopped.
 
@@ -78,9 +81,11 @@ changing the knowledge-answer contract.
 
 ## Approval and recovery
 
-Only the authenticated task owner can read, approve, reject or resume that task.
-The owner must remain in the configured operator list. This is explicit owner
-approval, not a two-person approval process.
+Only the requester and configured approvers can read or resume a task. Only an
+approver can approve or reject it, and never a task they requested. A requester
+must remain in the configured requester list to continue operating their task.
+A task ID belongs to the requester who first used it; another requester receives
+HTTP 409.
 
 Proposals and unused approvals expire one hour after creation. Rejected tasks cannot
 be approved later. An edited target requires a new task and a new approval.

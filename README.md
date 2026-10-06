@@ -44,8 +44,8 @@ docs/      Core architecture documentation
 in `us-east-1`, alongside the other infrastructure in the same Terraform root
 and state. The KIP reference deployment inputs are kept in `infra/terraform.tfvars`.
 The existing execution role and credentials secret are referenced
-by ARN. The application uses this KB directly; it no longer needs an OpenAI key,
-a local registry or the legacy S3 Vectors index to start. Terraform commands are
+by ARN. The application uses this KB directly; it needs no OpenAI key, registry
+or separate vector index. Terraform commands are
 in this repository. Existing visual assets are preserved;
 the architecture notes distinguish the old custom-index diagram from the new runtime.
 
@@ -101,12 +101,15 @@ keys for enabled interfaces are required.
 ## Knowledge-source tasks
 
 The optional task API inspects the configured knowledge source, proposes a sync,
-requires an explicit owner approval, and starts or resumes tracking the AWS job.
+requires explicit approval from an approver other than the requester, and starts or
+resumes tracking the AWS job.
 Use the **Knowledge tasks** group in Swagger at `/docs`.
 
 Enable `KNOWLEDGE_INTELLIGENCE_TASKS_ENABLED` only after configuring S3 task storage,
-the KB data source, and `KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES`. The latter
-is a JSON list of identities already in `QUERY_TOKENS`; ordinary knowledge access
+the KB data source, `KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES` (requesters) and
+`KNOWLEDGE_INTELLIGENCE_TASK_APPROVER_IDENTITIES` (approvers). Both are JSON lists of
+identities already in `QUERY_TOKENS`, and each requester needs an approver other than
+themselves; ordinary knowledge access
 does not grant task permissions. State is stored under `TASK_PREFIX`, default `tasks`.
 Terraform exposes the corresponding variables in the existing infra root and state.
 
@@ -162,9 +165,8 @@ endpoint similarly returns HTTP 202. Empty retrieval results produce a safe refu
 
 Confluence credentials stay in the connector's Secrets Manager secret and are
 never read by the application. S3 is needed only for optional Slack feedback and
-conversation persistence. The old custom ingestion, registry and S3 Vectors application code has been removed.
-Terraform definitions that own existing cloud resources remain until those resources
-are retired through a separate reviewed infrastructure change.
+conversation persistence. The old custom ingestion, registry and S3 Vectors code and
+infrastructure have been removed.
 
 Bedrock receives no user identity in retrieval requests. Configure Confluence with
 aclEnabled=false and crawlIdentities=false. All authorized users of this deployment

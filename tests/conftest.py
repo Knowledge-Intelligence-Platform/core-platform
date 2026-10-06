@@ -26,7 +26,7 @@ def make_chunk(chunk_id: str = "c1", text: str = "Raise a cluster request.") -> 
         document_id="d1",
         title="KIP Service onboarding",
         text=text,
-        source_location="s3://bucket/key.pdf",
+        source_location="https://example.atlassian.net/wiki/spaces/KIP/pages/1",
     )
 
 

@@ -34,10 +34,6 @@ locals {
   application_secret  = var.application_secret_name
   cloudwatch_log_name = "/ecs/${local.name_prefix}"
 
-  knowledge_s3_prefix = trimsuffix(
-    trimspace(var.knowledge_s3_prefix),
-    "/"
-  )
 
   common_tags = merge(
     var.additional_tags,

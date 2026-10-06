@@ -1,4 +1,4 @@
-"""FastAPI entry point and direct Phase 1 service composition."""
+"""FastAPI entry point and direct service composition."""
 
 from __future__ import annotations
 
@@ -136,6 +136,7 @@ def build_application(settings: Settings) -> Application:
                 bucket=settings.s3_bucket, prefix=settings.task_prefix, region=settings.aws_region
             ),
             region=settings.aws_region,
+            approvers=frozenset(settings.task_approver_identities),
         )
         if settings.tasks_enabled
         else None,
@@ -244,12 +245,15 @@ def _task_access(
     authorization = (
         f"{credentials.scheme} {credentials.credentials}" if credentials is not None else None
     )
-    owner = _query_identity(current.settings, authorization)
+    identity = _query_identity(current.settings, authorization)
     if current.tasks is None:
         raise HTTPException(status_code=503, detail="Task operations are not enabled.")
-    if owner not in current.settings.task_allowed_identities:
+    if (
+        identity not in current.settings.task_allowed_identities
+        and identity not in current.settings.task_approver_identities
+    ):
         raise HTTPException(status_code=403, detail="This identity cannot operate knowledge tasks.")
-    return current.tasks, owner
+    return current.tasks, identity
 
 
 @app.get("/tasks/source", tags=["Knowledge tasks"])
@@ -267,8 +271,10 @@ def propose_sync(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> TaskRecord:
-    tasks, owner = _task_access(request, credentials)
-    return tasks.propose(owner, task_id)
+    tasks, identity = _task_access(request, credentials)
+    if identity not in application(request).settings.task_allowed_identities:
+        raise HTTPException(status_code=403, detail="This identity cannot request knowledge tasks.")
+    return tasks.propose(identity, task_id)
 
 
 @app.get("/tasks/{task_id}", response_model=TaskRecord, tags=["Knowledge tasks"])
@@ -277,8 +283,8 @@ def get_task(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> TaskRecord:
-    tasks, owner = _task_access(request, credentials)
-    return tasks.get(owner, task_id)
+    tasks, identity = _task_access(request, credentials)
+    return tasks.get(identity, task_id)
 
 
 @app.post("/tasks/{task_id}/decision", response_model=TaskRecord, tags=["Knowledge tasks"])
@@ -288,8 +294,8 @@ def decide_task(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> TaskRecord:
-    tasks, owner = _task_access(request, credentials)
-    return tasks.decide(owner, task_id, payload.decision)
+    tasks, identity = _task_access(request, credentials)
+    return tasks.decide(identity, task_id, payload.decision)
 
 
 @app.post("/tasks/{task_id}/resume", response_model=TaskRecord, tags=["Knowledge tasks"])
@@ -298,8 +304,8 @@ def resume_task(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> TaskRecord:
-    tasks, owner = _task_access(request, credentials)
-    return tasks.resume(owner, task_id)
+    tasks, identity = _task_access(request, credentials)
+    return tasks.resume(identity, task_id)
 
 
 @app.exception_handler(TaskError)

@@ -41,6 +41,7 @@ class TaskRecord(BaseModel):
 
     task_id: UUID
     action: Literal["sync_knowledge_source"] = "sync_knowledge_source"
+    requester: str
     region: str
     knowledge_base_id: str
     data_source_id: str
@@ -49,6 +50,7 @@ class TaskRecord(BaseModel):
     created_at: datetime
     expires_at: datetime
     approved_at: datetime | None = None
+    decided_by: str | None = None
     execution_started_at: datetime | None = None
     job: SyncJob | None = None
 
@@ -71,13 +73,12 @@ class TaskStore:
             config=Config(connect_timeout=5, read_timeout=15, retries={"mode": "standard"}),
         )
 
-    def _key(self, owner: str, task_id: UUID) -> str:
-        digest = hashlib.sha256(owner.encode()).hexdigest()
-        return f"{self.prefix}/{digest}/{task_id}.json"
+    def _key(self, task_id: UUID) -> str:
+        return f"{self.prefix}/{task_id}.json"
 
-    def load(self, owner: str, task_id: UUID) -> tuple[TaskRecord, str]:
+    def load(self, task_id: UUID) -> tuple[TaskRecord, str]:
         try:
-            key = self._key(owner, task_id)
+            key = self._key(task_id)
             objects = self.client.list_objects_v2(Bucket=self.bucket, Prefix=key, MaxKeys=1)
             if not any(item.get("Key") == key for item in objects.get("Contents", [])):
                 raise TaskError("Task not found.", 404)
@@ -95,12 +96,12 @@ class TaskStore:
         except BotoCoreError:
             raise TaskError("Task storage is unavailable.", 503) from None
 
-    def save(self, owner: str, record: TaskRecord, etag: str | None = None) -> str:
+    def save(self, record: TaskRecord, etag: str | None = None) -> str:
         try:
             if etag is None:
                 response = self.client.put_object(
                     Bucket=self.bucket,
-                    Key=self._key(owner, record.task_id),
+                    Key=self._key(record.task_id),
                     Body=record.model_dump_json().encode(),
                     ContentType="application/json",
                     IfNoneMatch="*",
@@ -108,7 +109,7 @@ class TaskStore:
             else:
                 response = self.client.put_object(
                     Bucket=self.bucket,
-                    Key=self._key(owner, record.task_id),
+                    Key=self._key(record.task_id),
                     Body=record.model_dump_json().encode(),
                     ContentType="application/json",
                     IfMatch=etag,
@@ -141,13 +142,17 @@ class KnowledgeTasks:
         knowledge_base: KnowledgeBase,
         store: TaskStore,
         region: str,
+        approvers: frozenset[str],
     ) -> None:
         self.knowledge_base = knowledge_base
         self.store = store
         self.region = region
+        self.approvers = approvers
 
-    def _load(self, owner: str, task_id: UUID) -> tuple[TaskRecord, str]:
-        record, etag = self.store.load(owner, task_id)
+    def _load(self, identity: str, task_id: UUID) -> tuple[TaskRecord, str]:
+        record, etag = self.store.load(task_id)
+        if identity != record.requester and identity not in self.approvers:
+            raise TaskError("Task not found.", 404)
         if (
             record.task_id != task_id
             or record.region != self.region
@@ -157,31 +162,40 @@ class KnowledgeTasks:
             raise TaskError("Task target no longer matches this deployment. Create a new task.")
         return record, etag
 
-    def get(self, owner: str, task_id: UUID) -> TaskRecord:
-        return self._load(owner, task_id)[0]
+    def get(self, identity: str, task_id: UUID) -> TaskRecord:
+        return self._load(identity, task_id)[0]
 
-    def propose(self, owner: str, task_id: UUID) -> TaskRecord:
+    def propose(self, requester: str, task_id: UUID) -> TaskRecord:
         try:
-            return self.get(owner, task_id)
+            existing, _ = self.store.load(task_id)
         except TaskError as exc:
             if exc.status_code != 404:
                 raise
+        else:
+            if existing.requester != requester:
+                raise TaskError("This task ID is already in use. Choose a new task ID.")
+            return self.get(requester, task_id)
         now = datetime.now(UTC)
         record = TaskRecord(
             task_id=task_id,
+            requester=requester,
             region=self.region,
             knowledge_base_id=self.knowledge_base.knowledge_base_id,
             data_source_id=self.knowledge_base.data_source_id,
             created_at=now,
             expires_at=now + timedelta(hours=1),
         )
-        self.store.save(owner, record)
+        self.store.save(record)
         return record
 
     def decide(
-        self, owner: str, task_id: UUID, decision: Literal["approve", "reject"]
+        self, approver: str, task_id: UUID, decision: Literal["approve", "reject"]
     ) -> TaskRecord:
-        record, etag = self._load(owner, task_id)
+        record, etag = self._load(approver, task_id)
+        if approver not in self.approvers:
+            raise TaskError("This identity cannot decide knowledge tasks.", 403)
+        if approver == record.requester:
+            raise TaskError("A requester cannot decide their own task.", 403)
         target = "approved" if decision == "approve" else "rejected"
         if record.status == target:
             return record
@@ -193,13 +207,14 @@ class KnowledgeTasks:
             update={
                 "status": target,
                 "approved_at": datetime.now(UTC) if decision == "approve" else None,
+                "decided_by": approver,
             }
         )
-        self.store.save(owner, record, etag)
+        self.store.save(record, etag)
         return record
 
-    def resume(self, owner: str, task_id: UUID) -> TaskRecord:
-        record, etag = self._load(owner, task_id)
+    def resume(self, identity: str, task_id: UUID) -> TaskRecord:
+        record, etag = self._load(identity, task_id)
         if record.status in {"complete", "failed", "stopped", "rejected"}:
             return record
         if record.status == "awaiting_approval":
@@ -213,7 +228,7 @@ class KnowledgeTasks:
                     "execution_started_at": datetime.now(UTC),
                 }
             )
-            etag = self.store.save(owner, record, etag)
+            etag = self.store.save(record, etag)
         if record.status == "starting":
             if record.execution_started_at is None or datetime.now(
                 UTC
@@ -222,7 +237,7 @@ class KnowledgeTasks:
                     "Start outcome is uncertain. An operator must reconcile the AWS job."
                 )
             token = hashlib.sha256(
-                f"{owner}:{self.region}:{record.knowledge_base_id}:"
+                f"{record.requester}:{self.region}:{record.knowledge_base_id}:"
                 f"{record.data_source_id}:{task_id}".encode()
             ).hexdigest()
             job = self.knowledge_base.run(client_token=token)
@@ -237,5 +252,5 @@ class KnowledgeTasks:
         }
         status = terminal_states.get(job.status, "running")
         record = record.model_copy(update={"status": status, "job": job})
-        self.store.save(owner, record, etag)
+        self.store.save(record, etag)
         return record

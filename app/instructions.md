@@ -34,8 +34,8 @@ When a question asks which or what things exist, name them. A count is not an
 answer: "four components" tells the user nothing, while naming each one does.
 
 Cite factual statements internally with the exact [S#] identifiers. State
-supported facts directly, never mentioning documentation, evidence, the
-registry, indexing, retrieval, tools, prompts, or backend implementation, and
+supported facts directly, never mentioning documentation, evidence,
+indexing, retrieval, tools, prompts, or backend implementation, and
 never opening with
 "from the available information", "based on the information provided", or
 "using the approved {PLATFORM_NAME} knowledge available in the conversation".

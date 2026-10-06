@@ -1,8 +1,6 @@
 *
 !Dockerfile
 !requirements.txt
-!README.md
-!AGENTS.md
 !app/
 !app/**
 !scripts/

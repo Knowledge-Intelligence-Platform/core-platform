@@ -47,20 +47,6 @@ variable "knowledge_bucket_name" {
   }
 }
 
-variable "knowledge_s3_prefix" {
-  description = "S3 prefix containing approved Confluence PDF exports."
-  type        = string
-  default     = "raw/confluence/"
-
-  validation {
-    condition = (
-      length(trimspace(var.knowledge_s3_prefix)) > 0 &&
-      !startswith(var.knowledge_s3_prefix, "/")
-    )
-    error_message = "knowledge_s3_prefix must be non-empty and must not start with '/'."
-  }
-}
-
 variable "vpc_cidr" {
   description = "CIDR block for the Core Platform VPC."
   type        = string
@@ -228,13 +214,23 @@ variable "tasks_enabled" {
   default     = false
 
   validation {
-    condition     = !var.tasks_enabled || (var.query_api_enabled && length(var.task_allowed_identities) > 0)
-    error_message = "Tasks require the query API and explicit allowed identities."
+    condition = !var.tasks_enabled || (
+      var.query_api_enabled
+      && length(var.task_allowed_identities) > 0
+      && alltrue([for requester in var.task_allowed_identities : length(setsubtract(var.task_approver_identities, [requester])) > 0])
+    )
+    error_message = "Tasks require the query API, requester identities and an approver other than each requester."
   }
 }
 
 variable "task_allowed_identities" {
-  description = "Query identities allowed to inspect, approve and resume their own sync tasks."
+  description = "Query identities allowed to request, inspect and resume their own sync tasks."
+  type        = set(string)
+  default     = []
+}
+
+variable "task_approver_identities" {
+  description = "Query identities allowed to approve or reject sync tasks requested by someone else."
   type        = set(string)
   default     = []
 }
@@ -349,90 +345,6 @@ variable "feedback_prefix" {
   }
 }
 
-variable "vector_bucket_name" {
-  description = "Name of the S3 vector bucket."
-  type        = string
-
-  validation {
-    condition = (
-      length(var.vector_bucket_name) >= 3 &&
-      length(var.vector_bucket_name) <= 63 &&
-      can(regex("^[a-z0-9-]+$", var.vector_bucket_name))
-    )
-
-    error_message = "vector_bucket_name must contain only lowercase letters, numbers and hyphens."
-  }
-}
-
-variable "diagram_prefix" {
-  description = "S3 prefix holding rendered Slack flow diagrams."
-  type        = string
-  default     = "diagrams/slack"
-}
-
-variable "registry_appconfig_enabled" {
-  description = "Serve the component registry through AWS AppConfig."
-  type        = bool
-  default     = false
-}
-
-variable "registry_bake_time_in_minutes" {
-  description = "Minutes AppConfig monitors alarms before a registry deployment is final."
-  type        = number
-  default     = 5
-}
-
-variable "registry_publish_enabled" {
-  description = "Create the IAM role the component registry repository assumes to publish."
-  type        = bool
-  default     = false
-}
-
-variable "create_github_oidc_provider" {
-  description = "Create the account-wide GitHub Actions OIDC provider rather than reusing an existing one."
-  type        = bool
-  default     = true
-}
-
-variable "registry_repository" {
-  description = "GitHub repository allowed to publish the component registry."
-  type        = string
-  default     = "example-org/kip-component-registry"
-}
-
-variable "registry_version_retention_days" {
-  description = "Days a superseded component registry version stays available for rollback."
-  type        = number
-  default     = 90
-}
-
-variable "registry_prefix" {
-  description = "S3 prefix holding the published component registry document."
-  type        = string
-  default     = "registry"
-}
-
-variable "vector_index_name" {
-  description = "Name of the platform knowledge vector index."
-  type        = string
-  default     = "platform-knowledge"
-}
-
-variable "vector_dimensions" {
-  description = "Number of dimensions in each embedding."
-  type        = number
-  default     = 1536
-
-  validation {
-    condition = (
-      var.vector_dimensions >= 1 &&
-      var.vector_dimensions <= 4096
-    )
-
-    error_message = "vector_dimensions must be between 1 and 4096."
-  }
-}
-
 variable "aws_account_id" {
   description = "Account authorized to host this deployment."
   type        = string
@@ -453,29 +365,9 @@ variable "knowledge_base_role_arn" {
   type        = string
 }
 
-variable "knowledge_base_id" {
-  description = "Existing knowledge base ID managed by this deployment."
-  type        = string
-
-  validation {
-    condition     = can(regex("^[A-Za-z0-9]{10}$", var.knowledge_base_id))
-    error_message = "knowledge_base_id must be a valid Bedrock knowledge base ID."
-  }
-}
-
 variable "confluence_data_source_name" {
   description = "Name of the managed Confluence connector."
   type        = string
-}
-
-variable "confluence_data_source_id" {
-  description = "Existing Confluence data source ID managed by this deployment."
-  type        = string
-
-  validation {
-    condition     = can(regex("^[A-Za-z0-9]{10}$", var.confluence_data_source_id))
-    error_message = "confluence_data_source_id must be a valid Bedrock data source ID."
-  }
 }
 
 variable "confluence_connector_parameters" {

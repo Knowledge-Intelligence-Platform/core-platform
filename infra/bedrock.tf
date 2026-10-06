@@ -1,13 +1,3 @@
-import {
-  to = aws_bedrockagent_knowledge_base.this
-  id = var.knowledge_base_id
-}
-
-import {
-  to = aws_bedrockagent_data_source.confluence
-  id = "${var.confluence_data_source_id},${var.knowledge_base_id}"
-}
-
 resource "aws_bedrockagent_knowledge_base" "this" {
   provider = aws.bedrock
   name     = var.knowledge_base_name

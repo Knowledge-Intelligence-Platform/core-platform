@@ -15,7 +15,6 @@ RUN python -m pip install --requirement requirements.txt
 
 COPY app ./app
 COPY scripts/__init__.py scripts/ingest.py scripts/validate_search.py ./scripts/
-COPY README.md AGENTS.md ./
 
 USER app
 
