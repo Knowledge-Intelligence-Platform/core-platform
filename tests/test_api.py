@@ -15,15 +15,20 @@ from botocore.exceptions import ClientError
 from fastapi.testclient import TestClient
 
 from app import main
+from app.actions import ActionOutcome
+from app.actions.sync_knowledge import SyncKnowledgeSource
+from app.audit import AuditLog
 from app.config import Settings
 from app.knowledge_base import KnowledgeBase, KnowledgeBaseUnavailableError
 from app.models import KnowledgeAnswer, SyncJob
+from app.policy import TaskPolicy
 from app.slack import SlackAction
-from app.tasks import KnowledgeTasks, TaskError, TaskStore
+from app.tasks import PlanStep, TaskError, TaskOrigin, TaskRecord, TaskService, TaskStore
 
 ADMIN_TOKEN = "s3cret-admin-token"
 FORM = {"content-type": "application/x-www-form-urlencoded"}
 APPROVER = {"Authorization": "Bearer approver-token"}
+SYNC = SyncKnowledgeSource.task_type
 
 
 class Recorder:
@@ -377,16 +382,18 @@ class TaskKnowledgeBase(StubKnowledgeBase):
 
 
 @pytest.fixture
-def task_service(client: TestClient) -> tuple[KnowledgeTasks, TaskKnowledgeBase, MemoryS3]:
+def task_service(client: TestClient) -> tuple[TaskService, TaskKnowledgeBase, MemoryS3]:
     backend = TaskKnowledgeBase()
     storage = MemoryS3()
-    tasks = KnowledgeTasks(
-        knowledge_base=cast(Any, backend),
+    tasks = TaskService(
+        handlers=[SyncKnowledgeSource(knowledge_base=cast(Any, backend), region="us-east-1")],
         store=TaskStore(
             bucket="test-tasks", prefix="tasks", region="us-east-1", client=cast(Any, storage)
         ),
-        region="us-east-1",
-        approvers=frozenset({"approver@example.com"}),
+        audit=AuditLog(
+            bucket="test-tasks", prefix="audit", region="us-east-1", client=cast(Any, MemoryS3())
+        ),
+        policy=TaskPolicy(approvers=frozenset({"approver@example.com"})),
     )
     main.app.state.application.settings = Settings(
         _env_file=None,
@@ -404,6 +411,7 @@ def task_service(client: TestClient) -> tuple[KnowledgeTasks, TaskKnowledgeBase,
         task_approver_identities={"approver@example.com"},
     )
     main.app.state.application.tasks = tasks
+    main.app.state.application.knowledge_base = backend
     return tasks, backend, storage
 
 
@@ -480,7 +488,7 @@ def test_proposal_retries_preserve_the_same_task(client: TestClient, task_servic
 def test_expired_approval_cannot_start(client: TestClient, task_service, approved: bool) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     if approved:
         tasks.decide("approver@example.com", task_id, "approve")
     record, etag = tasks.store.load(task_id)
@@ -502,16 +510,16 @@ def test_expired_approval_cannot_start(client: TestClient, task_service, approve
 def test_uncertain_start_reuses_token_after_restart(client: TestClient, task_service) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     backend.fail_next_start = True
     assert client.post(f"/tasks/{task_id}/resume").status_code == 503
     assert tasks.get("reader@example.com", task_id).status == "starting"
-    restarted = KnowledgeTasks(
-        knowledge_base=cast(Any, backend),
+    restarted = TaskService(
+        handlers=list(tasks.handlers.values()),
         store=tasks.store,
-        region="us-east-1",
-        approvers=tasks.approvers,
+        audit=tasks.audit,
+        policy=tasks.policy,
     )
     assert restarted.resume("reader@example.com", task_id).status == "running"
     assert len(backend.tokens) == 2
@@ -522,7 +530,7 @@ def test_uncertain_start_reuses_token_after_restart(client: TestClient, task_ser
 def test_state_is_persisted_before_aws_start(client: TestClient, task_service) -> None:
     tasks, backend, storage = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     storage.fail_next_write = True
     assert client.post(f"/tasks/{task_id}/resume").status_code == 503
@@ -532,7 +540,7 @@ def test_state_is_persisted_before_aws_start(client: TestClient, task_service) -
 def test_concurrent_decision_cannot_overwrite_state(task_service) -> None:
     tasks, _, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     stale, etag = tasks.store.load(task_id)
     tasks.decide("approver@example.com", task_id, "reject")
     with pytest.raises(TaskError, match="concurrently"):
@@ -543,7 +551,7 @@ def test_concurrent_decision_cannot_overwrite_state(task_service) -> None:
 def test_changed_target_invalidates_approval(task_service) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     backend.data_source_id = "UVWXYZ1234"
     with pytest.raises(TaskError, match="target"):
@@ -563,7 +571,7 @@ def test_changed_target_invalidates_approval(task_service) -> None:
 def test_sync_completion_reflects_aws(task_service, status, expected) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     tasks.resume("reader@example.com", task_id)
     backend.job_status = status
@@ -578,7 +586,7 @@ def test_live_source_status_does_not_start_a_sync(client: TestClient, task_servi
 def test_record_failure_after_start_keeps_recovery_token(task_service, monkeypatch) -> None:
     tasks, backend, storage = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     original = backend.run
 
@@ -599,7 +607,7 @@ def test_record_failure_after_start_keeps_recovery_token(task_service, monkeypat
 def test_old_uncertain_start_requires_reconciliation(task_service) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     record, etag = tasks.store.load(task_id)
     tasks.store.save(
@@ -619,7 +627,7 @@ def test_old_uncertain_start_requires_reconciliation(task_service) -> None:
 def test_operator_revocation_blocks_existing_task(client: TestClient, task_service) -> None:
     tasks, backend, _ = task_service
     task_id = uuid4()
-    tasks.propose("reader@example.com", task_id)
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
     tasks.decide("approver@example.com", task_id, "approve")
     main.app.state.application.settings.task_allowed_identities = {"other@example.com"}
     assert client.post(f"/tasks/{task_id}/resume").status_code == 403
@@ -665,4 +673,124 @@ def test_enabled_tasks_require_an_independent_approver(approvers: set[str]) -> N
             query_tokens={"reader@example.com": "reader-token"},
             task_allowed_identities={"reader@example.com"},
             task_approver_identities=approvers,
+        )
+
+
+class ReadOnlyHandler:
+    task_type = "read_only_review"
+    requires_approval = False
+
+    def __init__(self) -> None:
+        self.started: list[str] = []
+
+    def scope(self) -> dict[str, str]:
+        return {"account": "111111111111", "region": "us-east-1"}
+
+    def plan(self) -> tuple[PlanStep, ...]:
+        return (PlanStep(action="review", target="security-groups", effect="Report findings."),)
+
+    def start(self, record: TaskRecord) -> ActionOutcome:
+        self.started.append(record.origin.kind)
+        return ActionOutcome(status="complete", result={"findings": "0"})
+
+    def poll(self, record: TaskRecord) -> ActionOutcome:
+        return ActionOutcome(status="complete", result={"findings": "0"})
+
+
+def audit_events(tasks: TaskService, task_id: Any) -> list[str]:
+    objects = cast(MemoryS3, tasks.audit.client).objects
+    prefix = f"audit/{task_id}/"
+    return sorted(
+        key.removeprefix(prefix).removesuffix(".json") for key in objects if prefix in key
+    )
+
+
+def test_task_lifecycle_is_audited_without_document_content(task_service) -> None:
+    tasks, _, _ = task_service
+    task_id = uuid4()
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
+    tasks.decide("approver@example.com", task_id, "approve")
+    tasks.resume("reader@example.com", task_id)
+    tasks.resume("reader@example.com", task_id)
+    assert audit_events(tasks, task_id) == [
+        "approved",
+        "complete",
+        "proposed",
+        "running",
+        "starting",
+    ]
+    stored = cast(MemoryS3, tasks.audit.client).objects[f"audit/{task_id}/approved.json"][0]
+    event = json.loads(stored)
+    assert event["actor"] == "approver@example.com"
+    assert event["correlation_id"] == str(tasks.get("reader@example.com", task_id).correlation_id)
+    assert set(event["details"]) == {"task_type", "status"}
+
+
+def test_audit_failure_blocks_the_action(client: TestClient, task_service) -> None:
+    tasks, backend, _ = task_service
+    task_id = uuid4()
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
+    tasks.decide("approver@example.com", task_id, "approve")
+    cast(MemoryS3, tasks.audit.client).fail_next_write = True
+    assert client.post(f"/tasks/{task_id}/resume").status_code == 503
+    assert tasks.get("reader@example.com", task_id).status == "approved"
+    assert backend.tokens == []
+
+
+def test_audit_events_are_written_once(task_service) -> None:
+    tasks, _, _ = task_service
+    task_id = uuid4()
+    tasks.propose(SYNC, TaskOrigin(kind="user", identity="reader@example.com"), task_id)
+    record = tasks.get("reader@example.com", task_id)
+    tasks._record_event(record, "proposed", "someone-else")
+    stored = cast(MemoryS3, tasks.audit.client).objects[f"audit/{task_id}/proposed.json"][0]
+    assert json.loads(stored)["actor"] == "reader@example.com"
+
+
+def test_event_origin_is_recorded_and_read_only_tasks_skip_approval(task_service) -> None:
+    tasks, _, _ = task_service
+    handler = ReadOnlyHandler()
+    tasks.handlers[handler.task_type] = handler
+    task_id = uuid4()
+    origin = TaskOrigin(kind="aws_event", identity="eventbridge:sg-rule", source_event_id="evt-1")
+    record = tasks.propose(handler.task_type, origin, task_id)
+    assert record.status == "approved"
+    assert record.decided_by == "policy"
+    assert record.origin.source_event_id == "evt-1"
+    assert tasks.store.load(task_id)[0].origin == origin
+    assert tasks.resume("approver@example.com", task_id).status == "complete"
+    assert handler.started == ["aws_event"]
+
+
+def test_unknown_task_type_is_rejected(task_service) -> None:
+    tasks, _, _ = task_service
+    with pytest.raises(TaskError, match="not enabled"):
+        tasks.propose("unknown", TaskOrigin(kind="user", identity="reader@example.com"), uuid4())
+
+
+def test_task_scope_is_immutable_for_every_task_type(task_service) -> None:
+    tasks, _, _ = task_service
+    handler = ReadOnlyHandler()
+    tasks.handlers[handler.task_type] = handler
+    task_id = uuid4()
+    tasks.propose(handler.task_type, TaskOrigin(kind="schedule", identity="weekly"), task_id)
+    handler.scope = lambda: {"account": "222222222222", "region": "us-east-1"}  # type: ignore[method-assign]
+    with pytest.raises(TaskError, match="target"):
+        tasks.get("approver@example.com", task_id)
+    assert handler.started == []
+
+
+def test_audit_prefix_must_not_overlap_task_prefix() -> None:
+    with pytest.raises(ValueError, match="separate"):
+        Settings(
+            _env_file=None,
+            knowledge_base_id="ABCDEFGHIJ",
+            knowledge_base_data_source_id="KLMNOPQRST",
+            s3_bucket="test-tasks",
+            tasks_enabled=True,
+            query_tokens={"reader@example.com": "reader-token", "a@example.com": "a-token"},
+            task_allowed_identities={"reader@example.com"},
+            task_approver_identities={"a@example.com"},
+            task_prefix="tasks",
+            audit_prefix="tasks/audit",
         )

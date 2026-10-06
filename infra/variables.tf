@@ -235,6 +235,26 @@ variable "task_approver_identities" {
   default     = []
 }
 
+variable "audit_prefix" {
+  description = "Dedicated S3 prefix for append-only task audit events. Must not overlap task_prefix."
+  type        = string
+  default     = "audit"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9][A-Za-z0-9/_-]*$", var.audit_prefix))
+    error_message = "Use a non-empty S3 prefix containing letters, digits, slash, underscore or hyphen."
+  }
+
+  validation {
+    condition = (
+      trim(var.audit_prefix, "/") != trim(var.task_prefix, "/") &&
+      !startswith(trim(var.audit_prefix, "/"), "${trim(var.task_prefix, "/")}/") &&
+      !startswith(trim(var.task_prefix, "/"), "${trim(var.audit_prefix, "/")}/")
+    )
+    error_message = "audit_prefix and task_prefix must be separate, non-nested prefixes."
+  }
+}
+
 variable "task_prefix" {
   description = "Dedicated S3 prefix for durable task records."
   type        = string

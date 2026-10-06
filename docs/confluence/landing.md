@@ -17,6 +17,7 @@ This space documents the shared platform. KIP’s own knowledge assistant is its
 - **Knowledge Sources and Synchronization:** learn how approved content becomes available to an assistant.
 - **KIP Knowledge-Source Tasks:** inspect source status and approve a tracked knowledge sync.
 - **Phase 2 Roadmap: Controlled Task Intelligence:** understand how KIP will evolve from a knowledge assistant into a governed task platform.
+- **Phase 2 Design: Controlled Task Intelligence:** see how tasks, agents, evidence, approval and audit fit together.
 - **Phase 3 Roadmap: Reusable Platform Packaging:** see how KIP will ship as a versioned container image and Terraform module that teams deploy without forking (planned from end of December 2026).
 
 KIP can only answer reliably when its connected documentation supports the answer. New or updated pages must be published and synced before KIP can use them.

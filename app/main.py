@@ -20,7 +20,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
 
+from app.actions.sync_knowledge import SyncKnowledgeSource
 from app.agent import PlatformKnowledgeAgent, public_answer
+from app.audit import AuditLog
 from app.config import Settings, get_settings
 from app.knowledge_base import KnowledgeBase, KnowledgeBaseUnavailableError
 from app.models import (
@@ -30,15 +32,17 @@ from app.models import (
     ReadyResponse,
     SyncJob,
 )
+from app.policy import TaskPolicy
 from app.slack import (
     FeedbackStore,
     SlackIntegration,
 )
 from app.tasks import (
-    KnowledgeTasks,
     TaskDecision,
     TaskError,
+    TaskOrigin,
     TaskRecord,
+    TaskService,
     TaskStore,
 )
 
@@ -80,7 +84,7 @@ class Application:
     knowledge_base: KnowledgeBase
     slack: SlackIntegration | None
     reindex_lock: Lock
-    tasks: KnowledgeTasks | None = None
+    tasks: TaskService | None = None
 
 
 def build_application(settings: Settings) -> Application:
@@ -130,13 +134,17 @@ def build_application(settings: Settings) -> Application:
         knowledge_base=knowledge_base,
         slack=slack,
         reindex_lock=Lock(),
-        tasks=KnowledgeTasks(
-            knowledge_base=knowledge_base,
+        tasks=TaskService(
+            handlers=[
+                SyncKnowledgeSource(knowledge_base=knowledge_base, region=settings.aws_region)
+            ],
             store=TaskStore(
                 bucket=settings.s3_bucket, prefix=settings.task_prefix, region=settings.aws_region
             ),
-            region=settings.aws_region,
-            approvers=frozenset(settings.task_approver_identities),
+            audit=AuditLog(
+                bucket=settings.s3_bucket, prefix=settings.audit_prefix, region=settings.aws_region
+            ),
+            policy=TaskPolicy(approvers=frozenset(settings.task_approver_identities)),
         )
         if settings.tasks_enabled
         else None,
@@ -154,6 +162,7 @@ async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
         current.knowledge_base.close()
         if current.tasks is not None:
             current.tasks.store.close()
+            current.tasks.audit.close()
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -240,7 +249,7 @@ def _query_identity(settings: Settings, authorization: str | None) -> str:
 def _task_access(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None,
-) -> tuple[KnowledgeTasks, str]:
+) -> tuple[TaskService, str]:
     current = application(request)
     authorization = (
         f"{credentials.scheme} {credentials.credentials}" if credentials is not None else None
@@ -261,8 +270,8 @@ def task_source(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
 ) -> dict[str, object]:
-    tasks, _ = _task_access(request, credentials)
-    return tasks.knowledge_base.source_status()
+    _task_access(request, credentials)
+    return application(request).knowledge_base.source_status()
 
 
 @app.post("/tasks/sync/{task_id}", response_model=TaskRecord, tags=["Knowledge tasks"])
@@ -274,7 +283,9 @@ def propose_sync(
     tasks, identity = _task_access(request, credentials)
     if identity not in application(request).settings.task_allowed_identities:
         raise HTTPException(status_code=403, detail="This identity cannot request knowledge tasks.")
-    return tasks.propose(identity, task_id)
+    return tasks.propose(
+        SyncKnowledgeSource.task_type, TaskOrigin(kind="user", identity=identity), task_id
+    )
 
 
 @app.get("/tasks/{task_id}", response_model=TaskRecord, tags=["Knowledge tasks"])

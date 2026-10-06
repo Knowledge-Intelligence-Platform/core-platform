@@ -30,6 +30,7 @@ Configure the existing region, KB ID, data-source ID and S3 bucket. Then configu
 | KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES | JSON list of requester identities already present in QUERY_TOKENS. |
 | KNOWLEDGE_INTELLIGENCE_TASK_APPROVER_IDENTITIES | JSON list of approver identities already present in QUERY_TOKENS. Each requester needs at least one approver other than themselves. |
 | KNOWLEDGE_INTELLIGENCE_TASK_PREFIX | Dedicated task-record prefix in the configured S3 bucket. Defaults to tasks. |
+| KNOWLEDGE_INTELLIGENCE_AUDIT_PREFIX | Separate prefix for append-only audit events. Defaults to audit and must not overlap the task prefix. |
 
 For example, allow `operator@example.com` only after assigning it a unique bearer
 token in the server-controlled query-token mapping. Do not put tokens in this page.
@@ -70,6 +71,13 @@ The example UUID is illustrative, not a value to reuse for every sync.
 `POST /tasks/sync/{task_id}` prepares the proposal directly. It does not invoke the
 model, interpret a prompt or bypass approval. `GET /tasks/{task_id}` reads the
 persisted record without polling AWS.
+
+Every task record states its `task_type`, its `origin` (what started it and who or what
+it was), an immutable `scope` (region, knowledge base and data source for a sync), the
+`plan` it will carry out, and the `result` of execution. Each lifecycle step also writes a
+create-only audit event under the audit prefix with the task and correlation IDs, the
+actor and the status, never document content. If an audit event cannot be written, the
+action does not proceed.
 
 The task record and returned AWS status are authoritative. A conversational answer
 is not approval and cannot start an action. Neither the task URL nor the decision

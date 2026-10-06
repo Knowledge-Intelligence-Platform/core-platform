@@ -57,6 +57,14 @@ data "aws_iam_policy_document" "bedrock_runtime" {
   dynamic "statement" {
     for_each = var.tasks_enabled ? [1] : []
     content {
+      sid       = "AppendKnowledgeTaskAudit"
+      actions   = ["s3:PutObject"]
+      resources = ["arn:aws:s3:::${var.knowledge_bucket_name}/${trim(var.audit_prefix, "/")}/*"]
+    }
+  }
+  dynamic "statement" {
+    for_each = var.tasks_enabled ? [1] : []
+    content {
       sid       = "CheckKnowledgeTaskExistence"
       actions   = ["s3:ListBucket"]
       resources = ["arn:aws:s3:::${var.knowledge_bucket_name}"]

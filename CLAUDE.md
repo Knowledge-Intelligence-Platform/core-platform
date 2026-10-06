@@ -126,8 +126,17 @@ KB source, persists a sync proposal, and starts the Bedrock ingestion job only a
 - Requesters (`TASK_ALLOWED_IDENTITIES`) create and resume their own tasks. Approvers
   (`TASK_APPROVER_IDENTITIES`) approve or reject, never a task they requested. Every requester must
   have an approver other than themselves.
-- Records live at `{TASK_PREFIX}/{task_id}.json` in S3 with conditional writes, store the
-  requester and deciding approver, and are bound to the immutable region, KB and data source.
+- Records live at `{TASK_PREFIX}/{task_id}.json` in S3 with conditional writes. Each stores its
+  `origin` (user, schedule, aws_event or github_event; authority comes from configuration, never
+  the trigger), the deciding approver and an immutable `scope` checked on every load.
+- `TaskService` (`app/tasks.py`) owns the lifecycle; each task type is an `ActionHandler`
+  (`app/actions/`, e.g. `SyncKnowledgeSource`) declaring scope, plan, start, poll and whether it
+  needs approval. `TaskPolicy` (`app/policy.py`) holds approver rules. `AuditLog` (`app/audit.py`)
+  writes one create-only event per task and event under `{AUDIT_PREFIX}/` before each state
+  change and fails closed; details are IDs and states, never document text.
+- `app/evidence.py` is the structured retrieval interface for agents: original passages with
+  source, space and `last_updated_at` (Bedrock exposes no Confluence version number) plus a
+  content hash; task records keep `EvidenceRef`s without text.
 - Persist the starting state before calling AWS and reuse the same Bedrock client token after an
   uncertain start. Never infer approval from text; knowledge prompts never create, approve or
   execute tasks, and task requests never go through KB retrieval.

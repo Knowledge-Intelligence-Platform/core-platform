@@ -203,3 +203,32 @@ def test_sync_requires_a_configured_data_source(kb) -> None:
     knowledge.data_source_id = ""
     with pytest.raises(ValueError):
         knowledge.run()
+
+
+def test_confluence_metadata_provides_title_space_and_version(kb) -> None:
+    knowledge, runtime, _ = kb
+    runtime.add_response(
+        "retrieve",
+        {
+            "retrievalResults": [
+                {
+                    "content": {"type": "TEXT", "text": "Approved platform overview."},
+                    "location": {
+                        "type": "CONFLUENCE",
+                        "confluenceLocation": {"url": "https://example.atlassian.net/wiki/123"},
+                    },
+                    "metadata": {
+                        "_document_title": "Platform overview",
+                        "_cf_space_name": "Knowledge Intelligence Platform",
+                        "_last_updated_at": "2026-10-03T14:15:59.050Z",
+                    },
+                    "score": 0.8,
+                }
+            ]
+        },
+        retrieval_request(),
+    )
+    chunk = knowledge.search("What is the platform?", 5)[0].chunk
+    assert chunk.title == "Platform overview"
+    assert chunk.space == "Knowledge Intelligence Platform"
+    assert chunk.last_updated_at == datetime(2026, 10, 3, 14, 15, 59, 50000, tzinfo=UTC)

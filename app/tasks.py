@@ -1,21 +1,24 @@
 from __future__ import annotations
 
-import hashlib
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from pydantic import BaseModel, ConfigDict
 
-from app.knowledge_base import KnowledgeBase
-from app.models import SyncJob
+from app.evidence import EvidenceRef
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
+
+    from app.actions import ActionHandler
+    from app.audit import AuditLog
+    from app.policy import TaskPolicy
 
 LOGGER = logging.getLogger(__name__)
 TaskStatus = Literal[
@@ -28,6 +31,9 @@ TaskStatus = Literal[
     "failed",
     "stopped",
 ]
+TERMINAL_STATUSES = {"complete", "failed", "stopped", "rejected"}
+APPROVAL_WINDOW = timedelta(hours=1)
+UNCERTAIN_START_AFTER = timedelta(minutes=10)
 
 
 class TaskError(RuntimeError):
@@ -36,23 +42,46 @@ class TaskError(RuntimeError):
         self.status_code = status_code
 
 
+class TaskOrigin(BaseModel):
+    """What started a task. Authority comes from configuration, never from the trigger."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: Literal["user", "schedule", "aws_event", "github_event"]
+    identity: str
+    source_event_id: str | None = None
+
+
+class PlanStep(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    action: str
+    target: str
+    effect: str
+    cites: tuple[EvidenceRef, ...] = ()
+
+
 class TaskRecord(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     task_id: UUID
-    action: Literal["sync_knowledge_source"] = "sync_knowledge_source"
-    requester: str
-    region: str
-    knowledge_base_id: str
-    data_source_id: str
-    effect: str = "Start ingestion of published content from the configured knowledge source."
+    task_type: str
+    origin: TaskOrigin
+    correlation_id: UUID
+    scope: dict[str, str]
+    effect: str
+    plan: tuple[PlanStep, ...]
     status: TaskStatus = "awaiting_approval"
     created_at: datetime
     expires_at: datetime
     approved_at: datetime | None = None
     decided_by: str | None = None
     execution_started_at: datetime | None = None
-    job: SyncJob | None = None
+    result: dict[str, str] | None = None
+
+    @property
+    def requester(self) -> str:
+        return self.origin.identity
 
 
 class TaskDecision(BaseModel):
@@ -135,56 +164,74 @@ class TaskStore:
         self.client.close()
 
 
-class KnowledgeTasks:
+class TaskService:
     def __init__(
         self,
         *,
-        knowledge_base: KnowledgeBase,
+        handlers: Sequence[ActionHandler],
         store: TaskStore,
-        region: str,
-        approvers: frozenset[str],
+        audit: AuditLog,
+        policy: TaskPolicy,
     ) -> None:
-        self.knowledge_base = knowledge_base
+        self.handlers = {handler.task_type: handler for handler in handlers}
         self.store = store
-        self.region = region
-        self.approvers = approvers
+        self.audit = audit
+        self.policy = policy
+
+    def _handler(self, task_type: str) -> ActionHandler:
+        handler = self.handlers.get(task_type)
+        if handler is None:
+            raise TaskError("This task type is not enabled.", 404)
+        return handler
 
     def _load(self, identity: str, task_id: UUID) -> tuple[TaskRecord, str]:
         record, etag = self.store.load(task_id)
-        if identity != record.requester and identity not in self.approvers:
+        if record.task_id != task_id or not self.policy.can_view(identity, record):
             raise TaskError("Task not found.", 404)
-        if (
-            record.task_id != task_id
-            or record.region != self.region
-            or record.knowledge_base_id != self.knowledge_base.knowledge_base_id
-            or record.data_source_id != self.knowledge_base.data_source_id
-        ):
+        if record.scope != self._handler(record.task_type).scope():
             raise TaskError("Task target no longer matches this deployment. Create a new task.")
         return record, etag
+
+    def _record_event(self, record: TaskRecord, event: str, actor: str) -> None:
+        self.audit.record(
+            task_id=record.task_id,
+            correlation_id=record.correlation_id,
+            event=event,
+            actor=actor,
+            details={"task_type": record.task_type, "status": record.status},
+        )
 
     def get(self, identity: str, task_id: UUID) -> TaskRecord:
         return self._load(identity, task_id)[0]
 
-    def propose(self, requester: str, task_id: UUID) -> TaskRecord:
+    def propose(self, task_type: str, origin: TaskOrigin, task_id: UUID) -> TaskRecord:
+        handler = self._handler(task_type)
         try:
             existing, _ = self.store.load(task_id)
         except TaskError as exc:
             if exc.status_code != 404:
                 raise
         else:
-            if existing.requester != requester:
+            if existing.requester != origin.identity:
                 raise TaskError("This task ID is already in use. Choose a new task ID.")
-            return self.get(requester, task_id)
+            return self.get(origin.identity, task_id)
         now = datetime.now(UTC)
+        plan = handler.plan()
         record = TaskRecord(
             task_id=task_id,
-            requester=requester,
-            region=self.region,
-            knowledge_base_id=self.knowledge_base.knowledge_base_id,
-            data_source_id=self.knowledge_base.data_source_id,
+            task_type=task_type,
+            origin=origin,
+            correlation_id=uuid4(),
+            scope=handler.scope(),
+            effect=" ".join(step.effect for step in plan),
+            plan=plan,
+            status="awaiting_approval" if handler.requires_approval else "approved",
             created_at=now,
-            expires_at=now + timedelta(hours=1),
+            expires_at=now + APPROVAL_WINDOW,
+            approved_at=None if handler.requires_approval else now,
+            decided_by=None if handler.requires_approval else "policy",
         )
+        self._record_event(record, "proposed", origin.identity)
         self.store.save(record)
         return record
 
@@ -192,10 +239,7 @@ class KnowledgeTasks:
         self, approver: str, task_id: UUID, decision: Literal["approve", "reject"]
     ) -> TaskRecord:
         record, etag = self._load(approver, task_id)
-        if approver not in self.approvers:
-            raise TaskError("This identity cannot decide knowledge tasks.", 403)
-        if approver == record.requester:
-            raise TaskError("A requester cannot decide their own task.", 403)
+        self.policy.check_decision(approver, record)
         target = "approved" if decision == "approve" else "rejected"
         if record.status == target:
             return record
@@ -210,47 +254,39 @@ class KnowledgeTasks:
                 "decided_by": approver,
             }
         )
+        self._record_event(record, target, approver)
         self.store.save(record, etag)
         return record
 
     def resume(self, identity: str, task_id: UUID) -> TaskRecord:
         record, etag = self._load(identity, task_id)
-        if record.status in {"complete", "failed", "stopped", "rejected"}:
+        if record.status in TERMINAL_STATUSES:
             return record
         if record.status == "awaiting_approval":
             raise TaskError("Explicit approval is required before starting this task.")
+        handler = self._handler(record.task_type)
         if record.status == "approved":
             if datetime.now(UTC) >= record.expires_at:
                 raise TaskError("This approval expired. Create and review a new task.")
             record = record.model_copy(
-                update={
-                    "status": "starting",
-                    "execution_started_at": datetime.now(UTC),
-                }
+                update={"status": "starting", "execution_started_at": datetime.now(UTC)}
             )
+            self._record_event(record, "starting", identity)
             etag = self.store.save(record, etag)
         if record.status == "starting":
-            if record.execution_started_at is None or datetime.now(
-                UTC
-            ) - record.execution_started_at > timedelta(minutes=10):
+            if (
+                record.execution_started_at is None
+                or datetime.now(UTC) - record.execution_started_at > UNCERTAIN_START_AFTER
+            ):
                 raise TaskError(
                     "Start outcome is uncertain. An operator must reconcile the AWS job."
                 )
-            token = hashlib.sha256(
-                f"{record.requester}:{self.region}:{record.knowledge_base_id}:"
-                f"{record.data_source_id}:{task_id}".encode()
-            ).hexdigest()
-            job = self.knowledge_base.run(client_token=token)
+            outcome = handler.start(record)
         else:
-            if record.job is None:
-                raise TaskError("Task has no recorded ingestion job.")
-            job = self.knowledge_base.sync_status(record.job.ingestion_job_id)
-        terminal_states: dict[str, TaskStatus] = {
-            "COMPLETE": "complete",
-            "FAILED": "failed",
-            "STOPPED": "stopped",
-        }
-        status = terminal_states.get(job.status, "running")
-        record = record.model_copy(update={"status": status, "job": job})
+            outcome = handler.poll(record)
+        previous = record.status
+        record = record.model_copy(update={"status": outcome.status, "result": outcome.result})
+        if record.status != previous:
+            self._record_event(record, record.status, identity)
         self.store.save(record, etag)
         return record

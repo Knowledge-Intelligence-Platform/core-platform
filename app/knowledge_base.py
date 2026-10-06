@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
+from datetime import datetime
 from typing import TYPE_CHECKING, cast
 
 import boto3
@@ -140,6 +141,15 @@ def _mapping(value: object) -> Mapping[str, object]:
     return cast(Mapping[str, object], value) if isinstance(value, dict) else {}
 
 
+def _timestamp(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def _search_result(item: Mapping[str, object], position: int) -> SearchResult | None:
     content = _mapping(item.get("content"))
     text = content.get("text")
@@ -158,7 +168,14 @@ def _search_result(item: Mapping[str, object], position: int) -> SearchResult | 
         value = metadata.get("x-amz-bedrock-kb-source-uri") or item.get("documentId")
         url = value if isinstance(value, str) else ""
     document_id = str(item.get("documentId") or url or hashlib.sha256(text.encode()).hexdigest())
-    title = metadata.get("title") or metadata.get("document_title") or url or "Knowledge document"
+    title = (
+        metadata.get("_document_title")
+        or metadata.get("title")
+        or metadata.get("document_title")
+        or url
+        or "Knowledge document"
+    )
+    space = metadata.get("_cf_space_name")
     page = metadata.get("x-amz-bedrock-kb-document-page-number")
     score = item.get("score", 0.0)
     return SearchResult(
@@ -170,6 +187,8 @@ def _search_result(item: Mapping[str, object], position: int) -> SearchResult | 
             text=text,
             source_location=url,
             page_number=int(page) if isinstance(page, int | float) and page >= 1 else None,
+            space=space if isinstance(space, str) and space else None,
+            last_updated_at=_timestamp(metadata.get("_last_updated_at")),
         ),
         score=float(score) if isinstance(score, int | float) else 0.0,
     )

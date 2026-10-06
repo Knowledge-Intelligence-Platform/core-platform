@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -14,6 +16,8 @@ class Chunk(BaseModel):
     text: str = Field(min_length=1)
     source_location: str
     page_number: int | None = Field(default=None, ge=1)
+    space: str | None = None
+    last_updated_at: datetime | None = None
 
 
 class SearchResult(BaseModel):

@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     task_allowed_identities: set[str] = Field(default_factory=set)
     task_approver_identities: set[str] = Field(default_factory=set)
     task_prefix: str = Field(default="tasks", pattern=r"^[A-Za-z0-9][A-Za-z0-9/_-]*$")
+    audit_prefix: str = Field(default="audit", pattern=r"^[A-Za-z0-9][A-Za-z0-9/_-]*$")
     query_tokens: dict[str, SecretStr] = Field(default_factory=dict)
     s3_bucket: str = ""
     agent_max_search_results: int = Field(default=5, ge=1, le=10)
@@ -75,6 +76,13 @@ class Settings(BaseSettings):
                 "Tasks require approver query identities, with an approver other than each "
                 "requester."
             )
+        tasks_path, audit_path = self.task_prefix.strip("/"), self.audit_prefix.strip("/")
+        if self.tasks_enabled and (
+            tasks_path == audit_path
+            or tasks_path.startswith(f"{audit_path}/")
+            or audit_path.startswith(f"{tasks_path}/")
+        ):
+            raise ValueError("TASK_PREFIX and AUDIT_PREFIX must be separate S3 prefixes.")
         if self.admin_token.get_secret_value() and not self.knowledge_base_data_source_id:
             raise ValueError("KNOWLEDGE_BASE_DATA_SOURCE_ID is required for administrative sync.")
         if any(
