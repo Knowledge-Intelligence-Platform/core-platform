@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -28,6 +29,10 @@ class Settings(BaseSettings):
     task_approver_identities: set[str] = Field(default_factory=set)
     task_prefix: str = Field(default="tasks", pattern=r"^[A-Za-z0-9][A-Za-z0-9/_-]*$")
     audit_prefix: str = Field(default="audit", pattern=r"^[A-Za-z0-9][A-Za-z0-9/_-]*$")
+    task_runner: Literal["local", "step_functions"] = "local"
+    task_state_machine_arn: str = Field(default="", pattern=r"^(?:arn:aws[a-z-]*:states:.+)?$")
+    executor_poll_seconds: float = Field(default=15.0, ge=1.0, le=300.0)
+    executor_timeout_seconds: float = Field(default=3000.0, ge=60.0, le=86400.0)
     query_tokens: dict[str, SecretStr] = Field(default_factory=dict)
     s3_bucket: str = ""
     agent_max_search_results: int = Field(default=5, ge=1, le=10)
@@ -83,6 +88,12 @@ class Settings(BaseSettings):
             or audit_path.startswith(f"{tasks_path}/")
         ):
             raise ValueError("TASK_PREFIX and AUDIT_PREFIX must be separate S3 prefixes.")
+        if (
+            self.tasks_enabled
+            and self.task_runner == "step_functions"
+            and not (self.task_state_machine_arn)
+        ):
+            raise ValueError("TASK_STATE_MACHINE_ARN is required for the step_functions runner.")
         if self.admin_token.get_secret_value() and not self.knowledge_base_data_source_id:
             raise ValueError("KNOWLEDGE_BASE_DATA_SOURCE_ID is required for administrative sync.")
         if any(

@@ -235,6 +235,17 @@ variable "task_approver_identities" {
   default     = []
 }
 
+variable "task_runner" {
+  description = "Where approved tasks run: local (inside the application) or step_functions (separate executor)."
+  type        = string
+  default     = "local"
+
+  validation {
+    condition     = contains(["local", "step_functions"], var.task_runner)
+    error_message = "task_runner must be local or step_functions."
+  }
+}
+
 variable "audit_prefix" {
   description = "Dedicated S3 prefix for append-only task audit events. Must not overlap task_prefix."
   type        = string

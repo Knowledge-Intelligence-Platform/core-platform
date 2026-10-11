@@ -134,6 +134,11 @@ KB source, persists a sync proposal, and starts the Bedrock ingestion job only a
   needs approval. `TaskPolicy` (`app/policy.py`) holds approver rules. `AuditLog` (`app/audit.py`)
   writes one create-only event per task and event under `{AUDIT_PREFIX}/` before each state
   change and fails closed; details are IDs and states, never document text.
+- `TaskRunner` decides where approved tasks run: `LocalRunner` (inside the app; resume advances
+  the task) or `StepFunctionsRunner` (`app/runners.py`; approval starts execution
+  `task-{task_id}` and resume only reads). The workflow (`infra/workflow.tf`) runs
+  `python -m scripts.run_task <id>` as an ECS task with its own executor role, which alone may
+  start ingestion when `task_runner = "step_functions"`; `TaskService.execute` is that path.
 - `app/evidence.py` is the structured retrieval interface for agents: original passages with
   source, space and `last_updated_at` (Bedrock exposes no Confluence version number) plus a
   content hash; task records keep `EvidenceRef`s without text.

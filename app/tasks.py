@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Protocol
 from uuid import UUID, uuid4
 
 import boto3
@@ -82,6 +82,21 @@ class TaskRecord(BaseModel):
     @property
     def requester(self) -> str:
         return self.origin.identity
+
+
+class TaskRunner(Protocol):
+    """Where approved tasks run: inside the app, or handed to a workflow engine."""
+
+    runs_in_app: bool
+
+    def submit(self, record: TaskRecord) -> None: ...
+
+
+class LocalRunner:
+    runs_in_app = True
+
+    def submit(self, record: TaskRecord) -> None:
+        return None
 
 
 class TaskDecision(BaseModel):
@@ -172,11 +187,13 @@ class TaskService:
         store: TaskStore,
         audit: AuditLog,
         policy: TaskPolicy,
+        runner: TaskRunner,
     ) -> None:
         self.handlers = {handler.task_type: handler for handler in handlers}
         self.store = store
         self.audit = audit
         self.policy = policy
+        self.runner = runner
 
     def _handler(self, task_type: str) -> ActionHandler:
         handler = self.handlers.get(task_type)
@@ -188,9 +205,12 @@ class TaskService:
         record, etag = self.store.load(task_id)
         if record.task_id != task_id or not self.policy.can_view(identity, record):
             raise TaskError("Task not found.", 404)
+        return self._checked(record), etag
+
+    def _checked(self, record: TaskRecord) -> TaskRecord:
         if record.scope != self._handler(record.task_type).scope():
             raise TaskError("Task target no longer matches this deployment. Create a new task.")
-        return record, etag
+        return record
 
     def _record_event(self, record: TaskRecord, event: str, actor: str) -> None:
         self.audit.record(
@@ -233,6 +253,8 @@ class TaskService:
         )
         self._record_event(record, "proposed", origin.identity)
         self.store.save(record)
+        if record.status == "approved":
+            self.runner.submit(record)
         return record
 
     def decide(
@@ -242,6 +264,8 @@ class TaskService:
         self.policy.check_decision(approver, record)
         target = "approved" if decision == "approve" else "rejected"
         if record.status == target:
+            if target == "approved":
+                self.runner.submit(record)
             return record
         if record.status != "awaiting_approval":
             raise TaskError("Only a pending proposal can be approved or rejected.")
@@ -256,10 +280,24 @@ class TaskService:
         )
         self._record_event(record, target, approver)
         self.store.save(record, etag)
+        if target == "approved":
+            self.runner.submit(record)
         return record
 
     def resume(self, identity: str, task_id: UUID) -> TaskRecord:
         record, etag = self._load(identity, task_id)
+        if not self.runner.runs_in_app:
+            return record
+        return self._advance(record, etag, identity)
+
+    def execute(self, task_id: UUID, actor: str = "executor") -> TaskRecord:
+        """Advance a task one step on behalf of the executor; no caller identity applies."""
+        record, etag = self.store.load(task_id)
+        if record.task_id != task_id:
+            raise TaskError("Task not found.", 404)
+        return self._advance(self._checked(record), etag, actor)
+
+    def _advance(self, record: TaskRecord, etag: str, actor: str) -> TaskRecord:
         if record.status in TERMINAL_STATUSES:
             return record
         if record.status == "awaiting_approval":
@@ -271,7 +309,7 @@ class TaskService:
             record = record.model_copy(
                 update={"status": "starting", "execution_started_at": datetime.now(UTC)}
             )
-            self._record_event(record, "starting", identity)
+            self._record_event(record, "starting", actor)
             etag = self.store.save(record, etag)
         if record.status == "starting":
             if (
@@ -287,6 +325,6 @@ class TaskService:
         previous = record.status
         record = record.model_copy(update={"status": outcome.status, "result": outcome.result})
         if record.status != previous:
-            self._record_event(record, record.status, identity)
+            self._record_event(record, record.status, actor)
         self.store.save(record, etag)
         return record

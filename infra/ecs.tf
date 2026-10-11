@@ -98,6 +98,8 @@ resource "aws_ecs_task_definition" "application" {
         { name = "KNOWLEDGE_INTELLIGENCE_TASK_APPROVER_IDENTITIES", value = jsonencode(var.task_approver_identities) },
         { name = "KNOWLEDGE_INTELLIGENCE_TASK_PREFIX", value = var.task_prefix },
         { name = "KNOWLEDGE_INTELLIGENCE_AUDIT_PREFIX", value = var.audit_prefix },
+        { name = "KNOWLEDGE_INTELLIGENCE_TASK_RUNNER", value = local.workflow_enabled ? "step_functions" : "local" },
+        { name = "KNOWLEDGE_INTELLIGENCE_TASK_STATE_MACHINE_ARN", value = try(aws_sfn_state_machine.tasks[0].arn, "") },
         { name = "KNOWLEDGE_INTELLIGENCE_S3_BUCKET", value = var.knowledge_bucket_name },
         { name = "KNOWLEDGE_INTELLIGENCE_AGENT_MAX_SEARCH_RESULTS", value = tostring(var.agent_max_search_results) },
         { name = "KNOWLEDGE_INTELLIGENCE_SLACK_ENABLED", value = tostring(var.slack_enabled) },

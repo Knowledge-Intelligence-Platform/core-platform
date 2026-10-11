@@ -30,6 +30,8 @@ Configure the existing region, KB ID, data-source ID and S3 bucket. Then configu
 | KNOWLEDGE_INTELLIGENCE_TASK_ALLOWED_IDENTITIES | JSON list of requester identities already present in QUERY_TOKENS. |
 | KNOWLEDGE_INTELLIGENCE_TASK_APPROVER_IDENTITIES | JSON list of approver identities already present in QUERY_TOKENS. Each requester needs at least one approver other than themselves. |
 | KNOWLEDGE_INTELLIGENCE_TASK_PREFIX | Dedicated task-record prefix in the configured S3 bucket. Defaults to tasks. |
+| KNOWLEDGE_INTELLIGENCE_TASK_RUNNER | `local` runs approved tasks inside the application (local development). `step_functions` hands them to the executor workflow. Defaults to local. |
+| KNOWLEDGE_INTELLIGENCE_TASK_STATE_MACHINE_ARN | The task workflow ARN, required for the `step_functions` runner. Terraform sets it. |
 | KNOWLEDGE_INTELLIGENCE_AUDIT_PREFIX | Separate prefix for append-only audit events. Defaults to audit and must not overlap the task prefix. |
 
 For example, allow `operator@example.com` only after assigning it a unique bearer
@@ -86,6 +88,19 @@ body can select a different AWS target or impersonate another user.
 Knowledge prompts cannot create, approve or start sync tasks. A future scheduler,
 event trigger, CLI or operator workflow can call these explicit endpoints without
 changing the knowledge-answer contract.
+
+## Where approved tasks run
+
+With the `local` runner, `POST /tasks/{task_id}/resume` starts and then tracks the AWS
+job from the application, which suits `fastapi dev`.
+
+With the `step_functions` runner (set Terraform `task_runner = "step_functions"`), an
+approval starts one Step Functions execution named after the task. The workflow runs
+`python -m scripts.run_task <task_id>` as a separate ECS task under its own executor
+role, which alone may start the ingestion job; the application role cannot. The executor
+advances the task to a terminal state and writes the record and audit events as
+`executor`. Resume then only reads the record. Repeating an approval resubmits the same
+execution safely, so a failed handoff can be retried.
 
 ## Approval and recovery
 

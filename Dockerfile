@@ -14,7 +14,7 @@ COPY requirements.txt ./
 RUN python -m pip install --requirement requirements.txt
 
 COPY app ./app
-COPY scripts/__init__.py scripts/ingest.py scripts/validate_search.py ./scripts/
+COPY scripts/__init__.py scripts/ingest.py scripts/run_task.py scripts/validate_search.py ./scripts/
 
 USER app
 

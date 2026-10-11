@@ -36,6 +36,7 @@ tags = null
 
 container_image_tag = "latest"
 bedrock_model_id    = "amazon.nova-lite-v1:0"
+task_runner         = "local"
 application_enabled = false
 query_api_enabled = false
 slack_enabled      = false

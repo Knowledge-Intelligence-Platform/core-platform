@@ -33,10 +33,17 @@ Triggers can be a user request, a schedule, an AWS event or a GitHub event. Even
 | Action handlers (`app/actions/`) | One module per task type | Sync handler built (2A-1) |
 | Policy (`app/policy.py`) | Approver rules, approval requirement | Built (2A-1) |
 | Audit log (`app/audit.py`) | Create-only event per task and step | Built (2A-1) |
-| Workflow engine | Approval waits, retries, resumability with Step Functions | Planned (2A-2) |
-| Executors | Separate IAM roles for approved changes | Planned (2A-2, 2E) |
+| Workflow engine (`app/runners.py`, `infra/workflow.tf`) | Step Functions runs approved tasks with retries | Built (2A-2) |
+| Executor (`scripts/run_task.py`) | ECS task with its own IAM role runs approved steps | Built (2A-2) |
 | AWS review | Read-only checks and plans | Planned (2B) |
 | GitHub relationships | Repository graph and pull request impact | Planned (2C, 2D) |
+
+## Workflow decisions (2A-2)
+
+- Approval stays in the application, protected by conditional writes and expiry. Step Functions starts only after approval, so the workflow never holds approval state or callback tokens.
+- The executor is an ECS Fargate task from the same container image, not a Lambda function. It reuses the application code without separate packaging, runs only while a task executes, and has no idle cost.
+- Each execution is named after its task, so repeated submissions cannot start duplicate work.
+- `local` remains the runner for development; deployed environments use `step_functions`.
 
 ## Standards and rules
 

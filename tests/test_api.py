@@ -23,7 +23,15 @@ from app.knowledge_base import KnowledgeBase, KnowledgeBaseUnavailableError
 from app.models import KnowledgeAnswer, SyncJob
 from app.policy import TaskPolicy
 from app.slack import SlackAction
-from app.tasks import PlanStep, TaskError, TaskOrigin, TaskRecord, TaskService, TaskStore
+from app.tasks import (
+    LocalRunner,
+    PlanStep,
+    TaskError,
+    TaskOrigin,
+    TaskRecord,
+    TaskService,
+    TaskStore,
+)
 
 ADMIN_TOKEN = "s3cret-admin-token"
 FORM = {"content-type": "application/x-www-form-urlencoded"}
@@ -394,6 +402,7 @@ def task_service(client: TestClient) -> tuple[TaskService, TaskKnowledgeBase, Me
             bucket="test-tasks", prefix="audit", region="us-east-1", client=cast(Any, MemoryS3())
         ),
         policy=TaskPolicy(approvers=frozenset({"approver@example.com"})),
+        runner=LocalRunner(),
     )
     main.app.state.application.settings = Settings(
         _env_file=None,
@@ -520,6 +529,7 @@ def test_uncertain_start_reuses_token_after_restart(client: TestClient, task_ser
         store=tasks.store,
         audit=tasks.audit,
         policy=tasks.policy,
+        runner=tasks.runner,
     )
     assert restarted.resume("reader@example.com", task_id).status == "running"
     assert len(backend.tokens) == 2

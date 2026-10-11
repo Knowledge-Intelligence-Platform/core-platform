@@ -104,3 +104,8 @@ output "knowledge_base_data_source_id" {
 output "bedrock_model_id" {
   value = var.bedrock_model_id
 }
+
+output "task_state_machine_arn" {
+  description = "Step Functions workflow that runs approved tasks, when task_runner is step_functions."
+  value       = try(aws_sfn_state_machine.tasks[0].arn, "")
+}

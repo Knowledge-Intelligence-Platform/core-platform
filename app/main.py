@@ -33,15 +33,18 @@ from app.models import (
     SyncJob,
 )
 from app.policy import TaskPolicy
+from app.runners import StepFunctionsRunner
 from app.slack import (
     FeedbackStore,
     SlackIntegration,
 )
 from app.tasks import (
+    LocalRunner,
     TaskDecision,
     TaskError,
     TaskOrigin,
     TaskRecord,
+    TaskRunner,
     TaskService,
     TaskStore,
 )
@@ -85,6 +88,14 @@ class Application:
     slack: SlackIntegration | None
     reindex_lock: Lock
     tasks: TaskService | None = None
+
+
+def task_runner(settings: Settings) -> TaskRunner:
+    if settings.task_runner == "step_functions":
+        return StepFunctionsRunner(
+            state_machine_arn=settings.task_state_machine_arn, region=settings.aws_region
+        )
+    return LocalRunner()
 
 
 def build_application(settings: Settings) -> Application:
@@ -145,6 +156,7 @@ def build_application(settings: Settings) -> Application:
                 bucket=settings.s3_bucket, prefix=settings.audit_prefix, region=settings.aws_region
             ),
             policy=TaskPolicy(approvers=frozenset(settings.task_approver_identities)),
+            runner=task_runner(settings),
         )
         if settings.tasks_enabled
         else None,

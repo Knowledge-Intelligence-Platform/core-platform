@@ -31,7 +31,7 @@ data "aws_iam_policy_document" "bedrock_runtime" {
   }
 
   dynamic "statement" {
-    for_each = var.admin_reindex_enabled || var.tasks_enabled ? [1] : []
+    for_each = var.admin_reindex_enabled || (var.tasks_enabled && var.task_runner == "local") ? [1] : []
     content {
       sid       = "SyncKnowledgeDataSource"
       actions   = ["bedrock:StartIngestionJob"]
@@ -52,6 +52,14 @@ data "aws_iam_policy_document" "bedrock_runtime" {
       sid       = "PersistKnowledgeTasks"
       actions   = ["s3:GetObject", "s3:PutObject"]
       resources = ["arn:aws:s3:::${var.knowledge_bucket_name}/${trim(var.task_prefix, "/")}/*"]
+    }
+  }
+  dynamic "statement" {
+    for_each = local.workflow_enabled ? [1] : []
+    content {
+      sid       = "StartApprovedTaskWorkflow"
+      actions   = ["states:StartExecution"]
+      resources = [aws_sfn_state_machine.tasks[0].arn]
     }
   }
   dynamic "statement" {

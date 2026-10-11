@@ -54,12 +54,31 @@ policies. A redesigned registry is future work.
 
 ## Preserved visual documentation
 
+![Current architecture](architecture.png)
+
+[architecture.png](architecture.png) shows the current implementation with official
+AWS Architecture Icons. It is generated
+from [architecture.py](architecture.py) with the `diagrams` library and Graphviz; the
+Confluence logo comes from Simple Icons (`icons/confluence.png`). To regenerate, install
+`diagrams` outside the application environment and run `python docs/architecture.py`.
+Add `--slide` to produce [architecture-slide.png](architecture-slide.png), an untitled
+16:9 version (2880 × 1620) for presentation slides.
+
+![Multi-agent interaction](agents.png)
+
+[agents.png](agents.png) shows how the agents interact. Triggers reach the task control
+plane, which hands tasks to the read-only agents and receives their plans; the agents
+never call each other. They read shared evidence (the knowledge base, Access Analyzer,
+AWS resources and GitHub), an approver releases approved steps, and the executor makes
+the changes while every step is audited. It is generated from [agents.py](agents.py),
+run from the `docs` directory, and also supports `--slide`.
+
 ![Previous custom-index architecture](architecture.svg)
 
-The [PNG export](architecture.png) and graphics in visuals/ are
-preserved historical assets. They describe the previous custom-index design.
-The runtime description above supersedes their OpenAI, custom embedding and
-S3 Vectors connections.
+[architecture.svg](architecture.svg) and the graphics in visuals/ are preserved
+historical assets describing the previous custom-index design. The runtime
+description above supersedes their OpenAI, custom embedding and S3 Vectors
+connections.
 
 ## Boundaries
 

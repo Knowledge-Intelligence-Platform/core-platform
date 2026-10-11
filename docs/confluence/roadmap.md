@@ -222,7 +222,7 @@ Audit records should be protected from normal task mutation and linked by a corr
 
 ### Phase 2A: Task and control-plane foundation
 
-**Status:** slice 2A-1 is built: evidence service, generic task records with origin and immutable scope, action handlers, policy and audit. Slice 2A-2 (workflow engine and executors) is next. See the Phase 2 design page.
+**Status:** Phase 2A is built. 2A-1 added the evidence service, generic task records with origin and immutable scope, action handlers, policy and audit. 2A-2 added the Step Functions workflow and a separate executor task and role. See the Phase 2 design page.
 
 Establish the reusable task model before adding broad execution capabilities.
 
